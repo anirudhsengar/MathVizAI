@@ -26,6 +26,23 @@ def generate_response(system_prompt: str, query:str):
 
     return response.choices[0].message.content
 
+# System Prompts
+solver = open("system_prompts/solver.txt", "r")
+evaluator = open("system_prompts/evaluator.txt", "r")
+script_writer = open("system_prompts/script_writer.txt", "r")
+video_generator = open("system_prompts/video_generator.txt", "r")
+
+# Simple user interation
+while True:
+    query = input("query: ")
+    if query.lower() in ["exit", "quit", "q"]:
+        break
+
+    answer = generate_response(solver, query)
+    evaluation = generate_response(evaluator, answer)
+    script = generate_response(script_writer, answer)
+    video = generate_response(video_generator, script)
+
 # Goal
 # 1. LLM answers the question along with the proof
 # 2. 2nd iteration to make sure the LLM is right and hasn't made any mistakes (Judge LLM)
