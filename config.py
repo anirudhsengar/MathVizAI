@@ -33,10 +33,16 @@ VIDEO_RESOLUTION = "1080p"
 VIDEO_FPS = 60
 VIDEO_BACKGROUND = "BLACK"
 
-# Audio configuration (placeholder for future implementation)
+# Audio configuration
 TTS_MODEL = "neuTTS-air"
+TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air"
 AUDIO_SEGMENT_DURATION = (15, 20)  # Min and max seconds per segment
 AUDIO_FORMAT = "wav"
+AUDIO_SAMPLE_RATE = 24000
+
+# Default reference audio (in audio/ folder)
+DEFAULT_REFERENCE_AUDIO = "sample_17s.wav"
+DEFAULT_REFERENCE_TEXT = "transcript_17s.txt"
 
 # Manim configuration
 MANIM_QUALITY = "high"  # Options: low, medium, high, production

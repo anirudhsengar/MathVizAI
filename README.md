@@ -9,9 +9,10 @@ MathVizAI is an end-to-end system that takes mathematical problems and automatic
 - **Intelligent Problem Solving**: Uses LLM to solve complex mathematical problems with detailed proofs
 - **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy
 - **Natural Audio Scripts**: Generates conversational explanations optimized for text-to-speech
+- **Voice Cloning TTS**: neuTTS-air integration for natural voice narration (optional)
 - **Beautiful Visualizations**: Creates Manim animations that sync perfectly with narration
 - **Segmented Output**: Breaks content into 15-20 second segments for optimal TTS processing
-- **Complete Pipeline**: Handles everything from problem input to video generation
+- **Complete Pipeline**: Handles everything from problem input to audio generation
 
 ## 🏗️ Architecture
 
@@ -35,6 +36,10 @@ Query Input
 │   Video Generator   │ ← Generates Manim code
 └─────────────────────┘
     ↓
+┌─────────────────────┐
+│   TTS Generator     │ ← Creates audio files
+└─────────────────────┘   (neuTTS-air)
+    ↓
   Output Files
 ```
 
@@ -46,6 +51,7 @@ Query Input
 - GitHub Token with API access
 - Manim and its dependencies
 - FFmpeg (for Manim)
+- neuTTS-air (optional, for audio generation)
 
 ### Setup
 
@@ -90,6 +96,24 @@ Or create a `.env` file:
 GITHUB_TOKEN=your_github_token_here
 ```
 
+5. **(Optional) Set up neuTTS-air for audio generation**
+
+See [TTS_SETUP.md](TTS_SETUP.md) for detailed instructions.
+
+**Quick setup:**
+```powershell
+# Install soundfile
+pip install soundfile
+
+# Clone and install neuTTS-air
+cd c:\Users\aniru\Desktop\GitHub
+git clone https://github.com/neuphonic/neutts-air.git
+cd neutts-air
+pip install -e .
+```
+
+**Note**: TTS is optional. Without it, the system will generate all other components and skip audio generation.
+
 ## 🚀 Usage
 
 ### Basic Usage
@@ -124,7 +148,10 @@ output/
     │   ├── segments.json          # Parsed segments
     │   └── segment_XX_visual.txt  # Visual cues
     ├── audio/
-    │   └── segment_XX_audio.txt   # Individual audio scripts
+    │   ├── segment_01.wav         # Generated audio (if TTS enabled)
+    │   ├── segment_02.wav
+    │   ├── segment_XX_audio.txt   # Audio script text
+    │   └── audio_metadata.json    # Audio generation info
     ├── video/
     │   ├── manim_visualization.py # Executable Manim code
     │   └── rendering_instructions.txt

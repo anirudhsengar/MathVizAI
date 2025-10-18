@@ -8,8 +8,10 @@ from pipeline.solver import MathSolver
 from pipeline.evaluator import SolutionEvaluator
 from pipeline.script_writer import ScriptWriter
 from pipeline.video_generator import VideoGenerator
+from pipeline.tts_generator import TTSGenerator
 import config
 from datetime import datetime
+import os
 
 
 class PipelineOrchestrator:
@@ -30,6 +32,7 @@ class PipelineOrchestrator:
         self.evaluator = SolutionEvaluator(self.llm_client, self.prompt_loader)
         self.script_writer = ScriptWriter(self.llm_client, self.prompt_loader)
         self.video_generator = VideoGenerator(self.llm_client, self.prompt_loader)
+        self.tts_generator = TTSGenerator()
         
         print("✓ All components initialized successfully\n")
     
@@ -61,6 +64,9 @@ class PipelineOrchestrator:
         # Phase 3: Generate Manim video script
         manim_script = self.video_generator.generate_manim_script(audio_script, file_manager)
         
+        # Phase 4: Generate audio files (TTS)
+        audio_files = self._generate_audio(file_manager)
+        
         # Calculate processing time
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
@@ -71,11 +77,14 @@ class PipelineOrchestrator:
             'timestamp': start_time.isoformat(),
             'processing_time_seconds': processing_time,
             'session_folder': file_manager.session_folder,
+            'tts_available': self.tts_generator.is_available(),
+            'audio_files_generated': len(audio_files) if audio_files else 0,
             'outputs': {
                 'solution': file_manager.get_path('solution_final.txt', 'solver'),
                 'evaluation': file_manager.get_path('evaluation_final.txt', 'evaluator'),
                 'audio_script': file_manager.get_path('audio_script.txt', 'script'),
                 'manim_script': file_manager.get_path('manim_visualization.py', 'video'),
+                'audio_files': audio_files if audio_files else []
             }
         }
         
@@ -159,6 +168,38 @@ Ensure all steps are correct and the proof is rigorous.
 """
         return retry_query
     
+    def _generate_audio(self, file_manager: FileManager) -> list:
+        """
+        Generate audio files from script segments
+        
+        Args:
+            file_manager: File manager instance
+        
+        Returns:
+            List of generated audio file paths
+        """
+        if not self.tts_generator.is_available():
+            print("\n⚠ TTS not available. Skipping audio generation.")
+            return []
+        
+        # Load segments
+        segments_path = file_manager.get_path('segments.json', 'script')
+        if not os.path.exists(segments_path):
+            print(f"✗ Segments file not found: {segments_path}")
+            return []
+        
+        import json
+        with open(segments_path, 'r', encoding='utf-8') as f:
+            segments = json.load(f)
+        
+        # Generate audio
+        audio_files = self.tts_generator.generate_audio_segments(
+            segments=segments,
+            file_manager=file_manager
+        )
+        
+        return audio_files
+    
     def _print_summary(self, metadata: dict):
         """Print processing summary"""
         print(f"\n{'='*60}")
@@ -166,13 +207,30 @@ Ensure all steps are correct and the proof is rigorous.
         print(f"{'='*60}")
         print(f"Session Folder: {metadata['session_folder']}")
         print(f"Processing Time: {metadata['processing_time_seconds']:.2f} seconds")
+        
+        if metadata.get('tts_available'):
+            print(f"TTS Status: ✓ Available")
+            print(f"Audio Files Generated: {metadata.get('audio_files_generated', 0)}")
+        else:
+            print(f"TTS Status: ✗ Not Available")
+        
         print(f"\nGenerated Files:")
         for output_type, path in metadata['outputs'].items():
-            print(f"  - {output_type}: {path}")
+            if output_type == 'audio_files' and isinstance(path, list):
+                if path:
+                    print(f"  - {output_type}: {len(path)} files in audio/")
+            else:
+                print(f"  - {output_type}: {path}")
+        
         print(f"\nNext Steps:")
         print(f"  1. Review the solution in: solver/")
-        print(f"  2. Check audio script segments in: audio/")
-        print(f"  3. Render Manim video from: video/manim_visualization.py")
-        print(f"  4. Generate audio using TTS (neuTTS-air) - TO BE IMPLEMENTED")
-        print(f"  5. Sync audio and video - TO BE IMPLEMENTED")
+        print(f"  2. Check audio script segments in: script/")
+        if metadata.get('audio_files_generated', 0) > 0:
+            print(f"  3. ✓ Audio files generated in: audio/ ({metadata['audio_files_generated']} files)")
+            print(f"  4. Render Manim video from: video/manim_visualization.py")
+            print(f"  5. Sync audio and video - TO BE IMPLEMENTED")
+        else:
+            print(f"  3. Render Manim video from: video/manim_visualization.py")
+            print(f"  4. Generate audio using TTS (neuTTS-air) - Install required")
+            print(f"  5. Sync audio and video - TO BE IMPLEMENTED")
         print(f"{'='*60}\n")

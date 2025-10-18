@@ -76,17 +76,7 @@ if __name__ == "__main__":
 # ✅ 2. 2nd iteration to make sure the LLM is right and hasn't made any mistakes (Judge LLM)
 # ✅ 3. Generate audio script explaining the answer
 # ✅ 4. Generate python script according to the audio script
-# 🔄 5. Split audio script into manageable portions for the TTS model to generate the audio (PARTIAL - segments created, TTS integration pending)
+# ✅ 5. Split audio script into manageable portions for the TTS model to generate the audio
 # ⏳ 6. Run the python script and get the videos (Manual step - see rendering_instructions.txt)
 # ⏳ 7. Align the audio and video together (TO BE IMPLEMENTED)
 # ⏳ 8. Save the video (TO BE IMPLEMENTED)
-
-# Goal
-# 1. LLM answers the question along with the proof
-# 2. 2nd iteration to make sure the LLM is right and hasn't made any mistakes (Judge LLM)
-# 3. Generate audio script explaining the answer
-# 4. Generate python script according to the audio script
-# 5. Split audio script into managable portions for the TTS model to generate the audio
-# 6. Run the python script and get the videos
-# 7. Align the audio and video together
-# 8. Save the video
