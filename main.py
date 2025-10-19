@@ -77,6 +77,6 @@ if __name__ == "__main__":
 # ✅ 3. Generate audio script explaining the answer
 # ✅ 4. Generate python script according to the audio script
 # ✅ 5. Split audio script into manageable portions for the TTS model to generate the audio
-# ⏳ 6. Run the python script and get the videos (Manual step - see rendering_instructions.txt)
-# ⏳ 7. Align the audio and video together (TO BE IMPLEMENTED)
-# ⏳ 8. Save the video (TO BE IMPLEMENTED)
+# ✅ 6. Run the python script and get the videos (Automated with VideoRenderer)
+# ✅ 7. Align the audio and video together (Automated with VideoSynchronizer)
+# ✅ 8. Save the video (Automated - concatenates all segments into final video)

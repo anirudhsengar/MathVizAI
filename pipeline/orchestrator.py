@@ -9,6 +9,8 @@ from pipeline.evaluator import SolutionEvaluator
 from pipeline.script_writer import ScriptWriter
 from pipeline.video_generator import VideoGenerator
 from pipeline.tts_generator import TTSGenerator
+from pipeline.video_renderer import VideoRenderer
+from pipeline.video_synchronizer import VideoSynchronizer
 import config
 from datetime import datetime
 import os
@@ -33,6 +35,8 @@ class PipelineOrchestrator:
         self.script_writer = ScriptWriter(self.llm_client, self.prompt_loader)
         self.video_generator = VideoGenerator(self.llm_client, self.prompt_loader)
         self.tts_generator = TTSGenerator()
+        self.video_renderer = VideoRenderer()
+        self.video_synchronizer = VideoSynchronizer()
         
         print("✓ All components initialized successfully\n")
     
@@ -67,6 +71,14 @@ class PipelineOrchestrator:
         # Phase 4: Generate audio files (TTS)
         audio_files = self._generate_audio(file_manager)
         
+        # Phase 5: Render videos from Manim script
+        rendered_videos = self._render_videos(file_manager, audio_files)
+        
+        # Phase 6: Synchronize audio and video
+        synced_videos, final_video = self._synchronize_audio_video(
+            file_manager, audio_files, rendered_videos
+        )
+        
         # Calculate processing time
         end_time = datetime.now()
         processing_time = (end_time - start_time).total_seconds()
@@ -79,12 +91,20 @@ class PipelineOrchestrator:
             'session_folder': file_manager.session_folder,
             'tts_available': self.tts_generator.is_available(),
             'audio_files_generated': len(audio_files) if audio_files else 0,
+            'video_rendering_available': self.video_renderer.is_available(),
+            'videos_rendered': len(rendered_videos) if rendered_videos else 0,
+            'sync_available': self.video_synchronizer.is_available(),
+            'segments_synced': len(synced_videos) if synced_videos else 0,
+            'final_video': final_video,
             'outputs': {
                 'solution': file_manager.get_path('solution_final.txt', 'solver'),
                 'evaluation': file_manager.get_path('evaluation_final.txt', 'evaluator'),
                 'audio_script': file_manager.get_path('audio_script.txt', 'script'),
                 'manim_script': file_manager.get_path('manim_visualization.py', 'video'),
-                'audio_files': audio_files if audio_files else []
+                'audio_files': audio_files if audio_files else [],
+                'rendered_videos': rendered_videos if rendered_videos else {},
+                'synced_segments': synced_videos if synced_videos else [],
+                'final_video': final_video
             }
         }
         
@@ -200,6 +220,155 @@ Ensure all steps are correct and the proof is rigorous.
         
         return audio_files
     
+    def _render_videos(self, file_manager: FileManager, audio_files: list) -> dict:
+        """
+        Render Manim videos from the generated script
+        
+        Args:
+            file_manager: File manager instance
+            audio_files: List of audio file paths for alignment
+        
+        Returns:
+            Dictionary mapping scene names to video paths
+        """
+        if not self.video_renderer.is_available():
+            print("\n⚠ Manim not available. Skipping video rendering.")
+            print("   Install Manim to enable automatic rendering:")
+            print("   pip install manim")
+            return {}
+        
+        # Get the Manim script path
+        manim_script_path = file_manager.get_path('manim_visualization.py', 'video')
+        
+        if not os.path.exists(manim_script_path):
+            print(f"✗ Manim script not found: {manim_script_path}")
+            return {}
+        
+        # Get the video output folder (create a 'rendered' subfolder)
+        video_output_folder = os.path.join(
+            file_manager.session_folder,
+            'video',
+            'rendered'
+        )
+        
+        # Determine quality from config
+        quality_map = {
+            'low': 'l',
+            'medium': 'm',
+            'high': 'h',
+            '4k': 'k'
+        }
+        quality = quality_map.get(config.MANIM_QUALITY.lower(), 'h')
+        
+        # Render all scenes
+        if audio_files:
+            # Use audio-aligned rendering if audio available
+            print(f"\n📎 Rendering with audio alignment ({len(audio_files)} audio segments)")
+            rendered_pairs = self.video_renderer.render_with_audio_alignment(
+                script_path=manim_script_path,
+                audio_segments=audio_files,
+                output_folder=video_output_folder,
+                quality=quality
+            )
+            # Convert to dict
+            rendered_videos = {f"scene_{i+1}": video for i, (video, audio) in enumerate(rendered_pairs)}
+        else:
+            # Standard rendering without audio
+            rendered_videos = self.video_renderer.render_all_scenes(
+                script_path=manim_script_path,
+                output_folder=video_output_folder,
+                quality=quality
+            )
+        
+        # Save rendering metadata
+        if rendered_videos:
+            rendering_metadata = {
+                'script_path': manim_script_path,
+                'output_folder': video_output_folder,
+                'quality': config.MANIM_QUALITY,
+                'scenes_rendered': len(rendered_videos),
+                'videos': rendered_videos,
+                'audio_aligned': len(audio_files) > 0
+            }
+            file_manager.save_metadata(rendering_metadata, 'rendering_metadata.json', 'video')
+        
+        return rendered_videos
+    
+    def _synchronize_audio_video(
+        self,
+        file_manager: FileManager,
+        audio_files: list,
+        rendered_videos: dict
+    ) -> tuple:
+        """
+        Synchronize audio and video segments
+        
+        Args:
+            file_manager: File manager instance
+            audio_files: List of audio file paths
+            rendered_videos: Dictionary of rendered video paths
+        
+        Returns:
+            Tuple of (synced_segments_list, final_video_path)
+        """
+        if not self.video_synchronizer.is_available():
+            print("\n⚠ FFmpeg not available. Skipping audio-video synchronization.")
+            print("   Install FFmpeg to enable sync:")
+            print("   Windows: choco install ffmpeg")
+            print("   Linux: sudo apt install ffmpeg")
+            print("   Mac: brew install ffmpeg")
+            return [], None
+        
+        # Need both audio and video to sync
+        if not audio_files:
+            print("\n⚠ No audio files available. Skipping synchronization.")
+            return [], None
+        
+        if not rendered_videos:
+            print("\n⚠ No rendered videos available. Skipping synchronization.")
+            return [], None
+        
+        # Get script segments for text content
+        segments_path = file_manager.get_path('segments.json', 'script')
+        script_segments = []
+        
+        if os.path.exists(segments_path):
+            import json
+            with open(segments_path, 'r', encoding='utf-8') as f:
+                script_segments = json.load(f)
+        
+        # Create output folder for synced videos
+        sync_output_folder = os.path.join(
+            file_manager.session_folder,
+            'final',
+            'synced'
+        )
+        
+        # Synchronize all segments
+        synced_segments = self.video_synchronizer.synchronize_segments(
+            audio_files=audio_files,
+            video_files=rendered_videos,
+            script_segments=script_segments,
+            output_folder=sync_output_folder,
+            file_manager=file_manager
+        )
+        
+        # Concatenate into final video
+        final_video = None
+        if synced_segments:
+            final_output_path = os.path.join(
+                file_manager.session_folder,
+                'final',
+                'final_video.mp4'
+            )
+            
+            final_video = self.video_synchronizer.concatenate_segments(
+                synced_segments=synced_segments,
+                output_path=final_output_path
+            )
+        
+        return synced_segments, final_video
+    
     def _print_summary(self, metadata: dict):
         """Print processing summary"""
         print(f"\n{'='*60}")
@@ -208,29 +377,78 @@ Ensure all steps are correct and the proof is rigorous.
         print(f"Session Folder: {metadata['session_folder']}")
         print(f"Processing Time: {metadata['processing_time_seconds']:.2f} seconds")
         
+        # TTS Status
         if metadata.get('tts_available'):
             print(f"TTS Status: ✓ Available")
             print(f"Audio Files Generated: {metadata.get('audio_files_generated', 0)}")
         else:
             print(f"TTS Status: ✗ Not Available")
         
+        # Video Rendering Status
+        if metadata.get('video_rendering_available'):
+            print(f"Manim Status: ✓ Available")
+            print(f"Videos Rendered: {metadata.get('videos_rendered', 0)}")
+        else:
+            print(f"Manim Status: ✗ Not Available")
+        
+        # Synchronization Status
+        if metadata.get('sync_available'):
+            print(f"FFmpeg Status: ✓ Available")
+            print(f"Segments Synchronized: {metadata.get('segments_synced', 0)}")
+            if metadata.get('final_video'):
+                print(f"Final Video: ✓ Created")
+        else:
+            print(f"FFmpeg Status: ✗ Not Available")
+        
         print(f"\nGenerated Files:")
         for output_type, path in metadata['outputs'].items():
             if output_type == 'audio_files' and isinstance(path, list):
                 if path:
                     print(f"  - {output_type}: {len(path)} files in audio/")
-            else:
+            elif output_type == 'rendered_videos' and isinstance(path, dict):
+                if path:
+                    print(f"  - {output_type}: {len(path)} videos in video/rendered/")
+            elif output_type == 'synced_segments' and isinstance(path, list):
+                if path:
+                    print(f"  - {output_type}: {len(path)} videos in final/synced/")
+            elif output_type == 'final_video' and path:
+                print(f"  - {output_type}: {path}")
+            elif output_type not in ['audio_files', 'rendered_videos', 'synced_segments']:
                 print(f"  - {output_type}: {path}")
         
         print(f"\nNext Steps:")
         print(f"  1. Review the solution in: solver/")
         print(f"  2. Check audio script segments in: script/")
+        
+        # Dynamic next steps based on what's available
+        step_num = 3
+        
         if metadata.get('audio_files_generated', 0) > 0:
-            print(f"  3. ✓ Audio files generated in: audio/ ({metadata['audio_files_generated']} files)")
-            print(f"  4. Render Manim video from: video/manim_visualization.py")
-            print(f"  5. Sync audio and video - TO BE IMPLEMENTED")
+            print(f"  {step_num}. ✓ Audio files generated in: audio/ ({metadata['audio_files_generated']} files)")
+            step_num += 1
         else:
-            print(f"  3. Render Manim video from: video/manim_visualization.py")
-            print(f"  4. Generate audio using TTS (neuTTS-air) - Install required")
-            print(f"  5. Sync audio and video - TO BE IMPLEMENTED")
+            print(f"  {step_num}. Generate audio using TTS (neuTTS-air) - Install required")
+            step_num += 1
+        
+        if metadata.get('videos_rendered', 0) > 0:
+            print(f"  {step_num}. ✓ Videos rendered in: video/rendered/ ({metadata['videos_rendered']} scenes)")
+            step_num += 1
+        else:
+            print(f"  {step_num}. Render Manim videos - Install Manim (pip install manim)")
+            step_num += 1
+        
+        if metadata.get('segments_synced', 0) > 0:
+            print(f"  {step_num}. ✓ Audio-video synchronized: final/synced/ ({metadata['segments_synced']} segments)")
+            step_num += 1
+        else:
+            print(f"  {step_num}. Synchronize audio and video - Install FFmpeg")
+            step_num += 1
+        
+        if metadata.get('final_video'):
+            print(f"  {step_num}. ✓ FINAL VIDEO READY: {os.path.basename(metadata['final_video'])}")
+            print(f"\n🎉 SUCCESS! Your complete educational video is ready!")
+            print(f"📁 Location: {metadata['final_video']}")
+        else:
+            print(f"  {step_num}. Concatenate segments into final video")
+        
         print(f"{'='*60}\n")
