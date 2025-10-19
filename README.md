@@ -1,23 +1,28 @@
 # MathVizAI 🧮🎬
 
-**Automated Mathematical Video Generation System**
+**Fully Automated Mathematical Video Generation System** 🚀
 
-MathVizAI is an end-to-end system that takes mathematical problems and automatically generates educational videos with synchronized visualizations and audio narration.
+MathVizAI is a **complete end-to-end system** that takes mathematical problems and automatically generates polished educational videos with synchronized visualizations and audio narration. **100% automated** from problem input to final video!
 
 ## 🌟 Features
 
 - **Intelligent Problem Solving**: Uses LLM to solve complex mathematical problems with detailed proofs
-- **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy
+- **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy (up to 5 retries)
 - **Natural Audio Scripts**: Generates conversational explanations optimized for text-to-speech
 - **Voice Cloning TTS**: neuTTS-air integration for natural voice narration (optional)
+- **Automated Video Rendering**: Automatically renders all Manim scenes with quality settings (optional)
+- **Audio-Video Synchronization**: Perfectly aligns audio with video, adjusts durations automatically ✨ **NEW!**
+- **Text Slide Generation**: Creates text slides when video is missing - no audio left behind! ✨ **NEW!**
 - **Beautiful Visualizations**: Creates Manim animations that sync perfectly with narration
-- **Segmented Output**: Breaks content into 15-20 second segments for optimal TTS processing
-- **Complete Pipeline**: Handles everything from problem input to audio generation
+- **Segmented Output**: Breaks content into 15-20 second segments for optimal processing
+- **Multiple Scene Support**: Handles complex problems with unlimited animation scenes
+- **Final Video Assembly**: Concatenates all segments into one polished video ✨ **NEW!**
+- **Complete Pipeline**: **100% automated** from problem input to final publishable video! 🎉
 
-## 🏗️ Architecture
+## 🏗️ Complete Pipeline Architecture
 
 ```
-Query Input
+Query Input: "Solve x² + 5x + 6 = 0"
     ↓
 ┌─────────────────────┐
 │   Math Solver       │ ← Solves problem with proof
@@ -34,13 +39,23 @@ Query Input
     ↓
 ┌─────────────────────┐
 │   Video Generator   │ ← Generates Manim code
-└─────────────────────┘
+└─────────────────────┘   (multiple scenes)
     ↓
 ┌─────────────────────┐
 │   TTS Generator     │ ← Creates audio files
-└─────────────────────┘   (neuTTS-air)
+└─────────────────────┘   (voice cloning)
     ↓
-  Output Files
+┌─────────────────────┐
+│   Video Renderer    │ ← Renders all scenes
+└─────────────────────┘   (automated)
+    ↓
+┌─────────────────────┐
+│   Video             │ ← Syncs audio + video ✨ NEW
+│   Synchronizer      │   (duration matching)
+└─────────────────────┘   (text slides for missing video)
+    ↓
+  🎉 Final Polished Video 🎉
+   (ready to publish!)
 ```
 
 ## 📦 Installation
@@ -49,8 +64,8 @@ Query Input
 
 - Python 3.8+
 - GitHub Token with API access
-- Manim and its dependencies
-- FFmpeg (for Manim)
+- FFmpeg (for Manim video rendering - optional)
+- Manim (for video rendering - optional)
 - neuTTS-air (optional, for audio generation)
 
 ### Setup
@@ -66,21 +81,28 @@ cd MathVizAI
 pip install -r requirements.txt
 ```
 
-3. **Install Manim dependencies**
-
-For detailed Manim installation, see: https://docs.manim.community/en/stable/installation.html
-
-**Quick install (Windows):**
+3. **Set up environment variables**
 ```powershell
-# Install Chocolatey if not installed
-# Then install dependencies
-choco install manimce
+# Windows PowerShell
+$env:GITHUB_TOKEN = "your_github_token_here"
+
+# Linux/Mac
+export GITHUB_TOKEN="your_github_token_here"
 ```
 
-**Quick install (Linux/Mac):**
+4. **Optional: Install Manim for automated video rendering**
 ```bash
 pip install manim
 ```
+
+For detailed Manim installation, see: https://docs.manim.community/en/stable/installation.html
+
+**FFmpeg (required for Manim):**
+- Windows: `choco install ffmpeg` or download from https://ffmpeg.org/
+- Linux: `sudo apt install ffmpeg`
+- Mac: `brew install ffmpeg`
+
+5. **Optional: Install neuTTS-air for TTS**
 
 4. **Set up environment variables**
 ```bash
