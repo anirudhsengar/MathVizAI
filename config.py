@@ -2,11 +2,15 @@
 Configuration file for MathVizAI project
 """
 import os
+from dotenv import load_dotenv
+
+# Load .env into environment variables (will look for .env in cwd/parents)
+load_dotenv()
 
 # API Configuration
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 ENDPOINT = "https://models.github.ai/inference"
-MODEL_NAME = "microsoft/Phi-4-reasoning"
+MODEL_NAME = "microsoft/Phi-4"
 
 # Temperature settings for different tasks
 TEMPERATURE_SOLVER = 0.4
@@ -36,7 +40,7 @@ VIDEO_BACKGROUND = "BLACK"
 # Audio configuration
 TTS_MODEL = "neuTTS-air"
 TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air"
-AUDIO_SEGMENT_DURATION = (15, 20)  # Min and max seconds per segment
+AUDIO_SEGMENT_DURATION = (10, 15)  # Min and max seconds per segment
 AUDIO_FORMAT = "wav"
 AUDIO_SAMPLE_RATE = 24000
 
