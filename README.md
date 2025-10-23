@@ -1,25 +1,26 @@
-# MathVizAI 🧮🎬
+# MathVizAI
 
-**Fully Automated Mathematical Video Generation System** 🚀
+**Fully Automated Mathematical Video Generation System**
 
-MathVizAI is a **complete end-to-end system** that takes mathematical problems and automatically generates polished educational videos with synchronized visualizations and audio narration. **100% automated** from problem input to final video!
+MathVizAI is a complete end-to-end system that takes mathematical problems and automatically generates polished educational videos with synchronized visualizations and audio narration. The entire pipeline is automated from problem input to final video output.
 
-## 🌟 Features
+![MathVizAI](image.png)
+
+## Features
 
 - **Intelligent Problem Solving**: Uses LLM to solve complex mathematical problems with detailed proofs
-- **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy (up to 5 retries)
+- **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy
 - **Natural Audio Scripts**: Generates conversational explanations optimized for text-to-speech
-- **Voice Cloning TTS**: neuTTS-air integration for natural voice narration (optional)
-- **Automated Video Rendering**: Automatically renders all Manim scenes with quality settings (optional)
-- **Audio-Video Synchronization**: Perfectly aligns audio with video, adjusts durations automatically ✨ **NEW!**
-- **Text Slide Generation**: Creates text slides when video is missing - no audio left behind! ✨ **NEW!**
-- **Beautiful Visualizations**: Creates Manim animations that sync perfectly with narration
+- **Voice Cloning TTS**: neuTTS-air integration for natural voice narration
+- **Automated Video Rendering**: Renders all Manim scenes with quality settings
+- **Audio-Video Synchronization**: Aligns audio with video and adjusts durations automatically
+- **Text Slide Generation**: Creates text slides when video is missing
+- **Beautiful Visualizations**: Creates Manim animations that sync with narration
 - **Segmented Output**: Breaks content into 15-20 second segments for optimal processing
 - **Multiple Scene Support**: Handles complex problems with unlimited animation scenes
-- **Final Video Assembly**: Concatenates all segments into one polished video ✨ **NEW!**
-- **Complete Pipeline**: **100% automated** from problem input to final publishable video! 🎉
+- **Final Video Assembly**: Concatenates all segments into one polished video
 
-## 🏗️ Complete Pipeline Architecture
+## Pipeline Architecture
 
 ```
 Query Input: "Solve x² + 5x + 6 = 0"
@@ -50,22 +51,22 @@ Query Input: "Solve x² + 5x + 6 = 0"
 └─────────────────────┘   (automated)
     ↓
 ┌─────────────────────┐
-│   Video             │ ← Syncs audio + video ✨ NEW
+│   Video             │ ← Syncs audio + video
 │   Synchronizer      │   (duration matching)
 └─────────────────────┘   (text slides for missing video)
     ↓
-  🎉 Final Polished Video 🎉
-   (ready to publish!)
+  Final Polished Video
+   (ready to publish)
 ```
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.8 or higher
 - GitHub Token with API access
-- FFmpeg (for Manim video rendering - optional)
-- Manim (for video rendering - optional)
+- FFmpeg (required for Manim video rendering)
+- Manim (optional, for automated video rendering)
 - neuTTS-air (optional, for audio generation)
 
 ### Setup
@@ -82,6 +83,9 @@ pip install -r requirements.txt
 ```
 
 3. **Set up environment variables**
+
+Create a `.env` file or set environment variables:
+
 ```powershell
 # Windows PowerShell
 $env:GITHUB_TOKEN = "your_github_token_here"
@@ -90,39 +94,28 @@ $env:GITHUB_TOKEN = "your_github_token_here"
 export GITHUB_TOKEN="your_github_token_here"
 ```
 
+Alternatively, create a `.env` file:
+```
+GITHUB_TOKEN=your_github_token_here
+```
+
 4. **Optional: Install Manim for automated video rendering**
 ```bash
 pip install manim
 ```
 
-For detailed Manim installation, see: https://docs.manim.community/en/stable/installation.html
+For detailed Manim installation instructions, visit: https://docs.manim.community/en/stable/installation.html
 
-**FFmpeg (required for Manim):**
+**FFmpeg Installation (required for Manim):**
 - Windows: `choco install ffmpeg` or download from https://ffmpeg.org/
 - Linux: `sudo apt install ffmpeg`
 - Mac: `brew install ffmpeg`
 
-5. **Optional: Install neuTTS-air for TTS**
-
-4. **Set up environment variables**
-```bash
-# Windows PowerShell
-$env:GITHUB_TOKEN="your_github_token_here"
-
-# Linux/Mac
-export GITHUB_TOKEN="your_github_token_here"
-```
-
-Or create a `.env` file:
-```
-GITHUB_TOKEN=your_github_token_here
-```
-
-5. **(Optional) Set up neuTTS-air for audio generation**
+5. **Optional: Set up neuTTS-air for audio generation**
 
 See [TTS_SETUP.md](TTS_SETUP.md) for detailed instructions.
 
-**Quick setup:**
+Quick setup:
 ```powershell
 # Install soundfile
 pip install soundfile
@@ -134,9 +127,9 @@ cd neutts-air
 pip install -e .
 ```
 
-**Note**: TTS is optional. Without it, the system will generate all other components and skip audio generation.
+Note: TTS is optional. Without it, the system will generate all other components and skip audio generation.
 
-## 🚀 Usage
+## Usage
 
 ### Basic Usage
 
@@ -147,7 +140,7 @@ python main.py
 Then enter mathematical problems when prompted:
 
 ```
-🔢 Enter math problem: Prove that the square root of 2 is irrational
+Enter math problem: Prove that the square root of 2 is irrational
 ```
 
 ### Output Structure
@@ -196,7 +189,7 @@ Quality options:
 - `-qh`: High quality (1080p60) - recommended
 - `-qk`: Production quality (1440p60)
 
-## ⚙️ Configuration
+## Configuration
 
 Edit `config.py` to customize:
 
@@ -215,30 +208,26 @@ VIDEO_RESOLUTION = "1080p"
 VIDEO_FPS = 60
 ```
 
-## 🎯 Roadmap
+## Roadmap
 
-**Current Status:**
+### Current Status
 
-- ✅ Mathematical problem solving with proofs
-- ✅ Automated solution validation with retry logic
-- ✅ Audio script generation with segments
-- ✅ Manim visualization code generation
-- 🔄 Audio segment splitting (partial - TTS integration pending)
-- ⏳ TTS audio generation (neuTTS-air integration)
-- ⏳ Audio-video synchronization
-- ⏳ Final video assembly
+- Mathematical problem solving with proofs
+- Automated solution validation with retry logic
+- Audio script generation with segments
+- Manim visualization code generation
+- TTS audio generation (neuTTS-air integration)
+- Audio-video synchronization
+- Final video assembly
 
-**Coming Soon:**
+### Planned Features
 
-- [ ] neuTTS-air integration for voice cloning
-- [ ] Automated Manim rendering
-- [ ] Audio-video synchronization pipeline
-- [ ] Background music and sound effects
-- [ ] Subtitle generation
-- [ ] Batch processing mode
-- [ ] Web interface
+- Background music and sound effects
+- Subtitle generation
+- Batch processing mode
+- Web interface
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -271,9 +260,9 @@ MathVizAI/
 2. **Pipeline Stages**: Add new stages in `pipeline/` directory
 3. **Configuration**: Add settings to `config.py`
 
-## 📝 Examples
+## Examples
 
-**Example problems you can try:**
+Example problems you can try:
 
 - "Prove that the square root of 2 is irrational"
 - "Solve the integral of e^x * sin(x) dx"
@@ -281,7 +270,7 @@ MathVizAI/
 - "Find the derivative of x^x"
 - "Explain the Fundamental Theorem of Calculus"
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Areas where help is needed:
 
@@ -291,21 +280,13 @@ Contributions are welcome! Areas where help is needed:
 - Additional visualization types
 - Testing and bug fixes
 
-## 📄 License
+## License
 
-MIT License - see LICENSE file for details
+MIT License
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Manim Community** - Mathematical animation engine
 - **Microsoft Phi-4** - Reasoning model via GitHub Models
 - **Azure AI Inference** - LLM API infrastructure
 
-## 📧 Contact
-
-**Author**: Anirudh Sengar  
-**Repository**: [github.com/anirudhsengar/MathVizAI](https://github.com/anirudhsengar/MathVizAI)
-
----
-
-Made with ❤️ for math education
