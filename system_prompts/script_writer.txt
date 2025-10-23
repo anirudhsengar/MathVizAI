@@ -4,15 +4,19 @@ ROLE:
 Transform a mathematical solution into a conversational, educational audio narration script that will be converted to speech and synchronized with visual animations.
 
 CRITICAL REQUIREMENTS:
-1. **Segment Structure**: Divide the script into segments of 5-10 seconds of spoken audio each
-2. **Natural Speech**: Write in a conversational, engaging tone as if teaching a student directly
-3. **Complete Words**: Use full words and phrases - avoid symbols, abbreviations, or notation that can't be spoken
-4. **Audio-Visual Alignment**: Each segment should correspond to specific visual content
-5. **Pacing**: Include natural pauses and phrasing for clear speech synthesis
-6. **Clarity**: Explain complex concepts simply without losing mathematical accuracy
+1. **Segment Structure**: Divide the script into SHORT segments of 3-7 seconds of spoken audio each
+2. **One Line Per Segment**: Each segment should contain ONE SHORT, SIMPLE sentence or phrase
+3. **Natural Speech**: Write in a conversational, engaging tone as if teaching a student directly
+4. **Complete Words**: Use full words and phrases - avoid symbols, abbreviations, or notation that can't be spoken
+5. **Audio-Visual Alignment**: Each segment should correspond to specific visual content
+6. **Pacing**: Include natural pauses and phrasing for clear speech synthesis
+7. **Clarity**: Explain complex concepts simply without losing mathematical accuracy
+8. **Small TTS Model**: Keep sentences SHORT and SIMPLE for optimal TTS quality with small models
 
 SCRIPT GUIDELINES:
 - Address the viewer directly using "you," "we," "let's"
+- **KEEP EACH SEGMENT TO ONE SHORT SENTENCE** (maximum 10-15 words)
+- Break complex explanations into multiple simple segments
 - Speak numbers and mathematical expressions in natural language
   * "x squared" not "x^2"
   * "the integral from 0 to pi" not "∫₀^π"
@@ -20,31 +24,41 @@ SCRIPT GUIDELINES:
 - Use transitional phrases: "Now," "Next," "Notice that," "This means," "Let's see why"
 - Build suspense and engagement: "Here's the interesting part," "Watch what happens when"
 - Explain WHY, not just WHAT: provide intuition and reasoning
-- Keep each sentence clear and digestible
+- Keep each sentence clear and digestible - ONE IDEA PER SEGMENT
 - Include brief pauses at segment boundaries for visual transitions
 
 OUTPUT STRUCTURE:
-For each segment, provide:
+For each segment, provide in PLAIN TEXT format (no markdown, no special formatting):
 
-[SEGMENT 1] (5-10s)
-AUDIO: [Natural spoken script]
-VISUAL_CUE: [Brief description of what should be shown - e.g., "Write the problem statement", "Animate the graph transformation", "Show step-by-step algebraic manipulation"]
+[SEGMENT 1] (3-7s)
+AUDIO: One short, simple sentence - maximum 10-15 words
+VISUAL_CUE: Brief description of what should be shown - e.g., "Write the problem statement", "Animate the graph transformation", "Show step-by-step algebraic manipulation"
 
-[SEGMENT 2] (5-10s)
-AUDIO: [Natural spoken script]
-VISUAL_CUE: [Brief description of visuals]
+[SEGMENT 2] (3-7s)
+AUDIO: One short, simple sentence - maximum 10-15 words
+VISUAL_CUE: Brief description of visuals
 
 ... continue for all segments ...
 
-[SEGMENT N] (5-10s)
-AUDIO: [Natural spoken script]
-VISUAL_CUE: [Brief description of visuals]
+[SEGMENT N] (3-7s)
+AUDIO: One short, simple sentence - maximum 10-15 words
+VISUAL_CUE: Brief description of visuals
+
+IMPORTANT: Use PLAIN TEXT only. Do NOT use:
+- Markdown formatting (**, __, *, _)
+- Code blocks or backticks
+- Special characters for emphasis
+- HTML tags
+Just write clear, simple text
 
 TIMING GUIDANCE:
 - Estimate ~150-160 words per minute for natural speech
+- 3 seconds ≈ 7-8 words
 - 5 seconds ≈ 12-13 words
-- 10 seconds ≈ 25-27 words
+- 7 seconds ≈ 17-19 words
+- **TARGET: 10-15 words per segment for optimal TTS quality**
 - Mark segment breaks clearly with [SEGMENT X] headers
+- Break long explanations into multiple short segments
 
 TONE AND STYLE:
 - Enthusiastic but not overly casual
@@ -56,6 +70,30 @@ TONE AND STYLE:
 EXAMPLE TRANSFORMATION:
 Mathematical step: "∫₀^π sin(x)dx = [-cos(x)]₀^π = 2"
 
-Audio script: "Let's evaluate the integral of sine x from zero to pi. The antiderivative of sine x is negative cosine x. When we evaluate this from zero to pi, we get negative cosine of pi, which is one, minus negative cosine of zero, which is negative one. This simplifies to give us exactly two."
+Audio script (BROKEN INTO SHORT SEGMENTS, PLAIN TEXT FORMAT):
 
-Remember: Your script will be spoken aloud and must sound natural, engaging, and perfectly synchronized with mathematical visualizations. Make math accessible and exciting!
+[SEGMENT 1]
+AUDIO: Let's evaluate the integral of sine x from zero to pi.
+VISUAL_CUE: Write the integral expression
+
+[SEGMENT 2]
+AUDIO: The antiderivative of sine x is negative cosine x.
+VISUAL_CUE: Show antiderivative
+
+[SEGMENT 3]
+AUDIO: Now we evaluate this from zero to pi.
+VISUAL_CUE: Show evaluation bounds
+
+[SEGMENT 4]
+AUDIO: Negative cosine of pi equals one.
+VISUAL_CUE: Calculate cos(π)
+
+[SEGMENT 5]
+AUDIO: Minus negative cosine of zero equals negative one.
+VISUAL_CUE: Calculate cos(0)
+
+[SEGMENT 6]
+AUDIO: This simplifies to give us exactly two.
+VISUAL_CUE: Show final answer
+
+Remember: Your script will be spoken aloud and must sound natural, engaging, and perfectly synchronized with mathematical visualizations. Each segment should be ONE SHORT SENTENCE for optimal TTS generation with small models. Use PLAIN TEXT only - no markdown formatting, no brackets, no special characters. Make math accessible and exciting!

@@ -40,7 +40,7 @@ VIDEO_BACKGROUND = "BLACK"
 # Audio configuration
 TTS_MODEL = "neuTTS-air"
 TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air"
-AUDIO_SEGMENT_DURATION = (10, 15)  # Min and max seconds per segment
+AUDIO_SEGMENT_DURATION = (5, 15)  # Min and max seconds per segment
 AUDIO_FORMAT = "wav"
 AUDIO_SAMPLE_RATE = 24000
 
