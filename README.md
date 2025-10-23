@@ -121,8 +121,7 @@ Quick setup:
 pip install soundfile
 
 # Clone and install neuTTS-air
-cd c:\Users\aniru\Desktop\GitHub
-git clone https://github.com/neuphonic/neutts-air.git
+git clone https://github.com/anirudhsengar/neutts-air.git
 cd neutts-air
 pip install -e .
 ```
@@ -136,7 +135,6 @@ Note: TTS is optional. Without it, the system will generate all other components
 ```bash
 python main.py
 ```
-
 Then enter mathematical problems when prompted:
 
 ```
