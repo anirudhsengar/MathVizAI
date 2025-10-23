@@ -290,7 +290,7 @@ Ensure all steps are correct and the proof is rigorous.
                 'videos': rendered_videos,
                 'audio_aligned': len(audio_files) > 0
             }
-            file_manager.save_metadata(rendering_metadata, 'rendering_metadata.json', 'video')
+            file_manager.save_json(rendering_metadata, 'rendering_metadata.json', 'video')
         
         return rendered_videos
     
