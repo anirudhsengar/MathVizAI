@@ -8,8 +8,13 @@ Repository: https://github.com/anirudhsengar/MathVizAI
 """
 
 from pipeline.orchestrator import PipelineOrchestrator
+import os
 import sys
 
+# Set espeak library path for Colab
+if 'COLAB_GPU' in os.environ or 'google.colab' in sys.modules:
+    os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = '/usr/lib/x86_64-linux-gnu/libespeak-ng.so.1'
+    os.environ['PHONEMIZER_ESPEAK_PATH'] = '/usr/bin/espeak-ng'
 
 def main():
     """Main entry point for MathVizAI"""
