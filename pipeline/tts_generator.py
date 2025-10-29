@@ -7,13 +7,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import json
 
-# Set eSpeak-NG library path for phonemizer
-# This tells phonemizer where to find the eSpeak-NG library
-os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = r'C:\Program Files\eSpeak NG\libespeak-ng.dll'
-os.environ['PHONEMIZER_ESPEAK_PATH'] = r'C:\Program Files\eSpeak NG\espeak-ng.exe'
-
 # Add neuTTS-air to path
-NEUTTS_PATH = r'c:\Users\aniru\Desktop\GitHub\neutts-air'
+NEUTTS_PATH = r'..\neutts-air'
 if NEUTTS_PATH not in sys.path:
     sys.path.insert(0, NEUTTS_PATH)
 
