@@ -27,13 +27,15 @@ class MathVisualization(Scene):
 
 ANIMATION GUIDELINES:
 1. **Text Display**:
-   - Use Text() or MathTex() for mathematical expressions
+   - Use Text() for ALL content including math (do not use MathTex)
    - Ensure text is large enough to read (scale=0.7 to 1.0)
    - Position text clearly (UP, DOWN, LEFT, RIGHT, or custom coordinates)
    - Use Write() or FadeIn() for smooth text appearance
 
 2. **Mathematical Content**:
-   - Use MathTex() for LaTeX expressions
+   - Use Text() for ALL mathematical expressions (LaTeX is NOT available)
+   - Do NOT use MathTex() or Tex() under any circumstances
+   - Write equations as plain text strings in Text() objects
    - Break complex expressions into parts for step-by-step reveals
    - Use Transform() or ReplacementTransform() for equation modifications
    - Highlight important terms with color changes or surrounding boxes
@@ -83,7 +85,7 @@ class Example(Scene):
         self.play(Write(title), run_time=2)
         self.wait(1)
         
-        theorem = MathTex("a^2 + b^2 = c^2")
+        theorem = Text("a^2 + b^2 = c^2")
         theorem.next_to(title, DOWN, buff=1)
         self.play(FadeIn(theorem), run_time=2)
         self.wait(2)

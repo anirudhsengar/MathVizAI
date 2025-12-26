@@ -82,7 +82,7 @@ class VideoRenderer:
         output_name: Optional[str] = None
     ) -> Optional[str]:
         """
-        Render a single Manim scene
+        Render a single Manim scene as PNG sequence and stitch to video
         
         Args:
             script_path: Path to the Manim script
@@ -94,47 +94,113 @@ class VideoRenderer:
             Path to rendered video file, or None if failed
         """
         try:
-            # Build manim command
+            # 1. Render as PNG sequence (bypassing av library issues)
+            # -r is for resolution (not needed if quality is set), --format=png is key
             quality_flag = f'-q{quality}'
-            cmd = ['manim', quality_flag, script_path, scene_name]
+            cmd = ['manim', quality_flag, '--format=png', script_path, scene_name]
             
-            print(f"\n🎬 Rendering scene: {scene_name}")
+            print(f"\n🎬 Rendering scene as PNG sequence: {scene_name}")
             print(f"   Command: {' '.join(cmd)}")
             
-            # Run manim
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minute timeout
+                timeout=1200  # 20 minute timeout for image generation
             )
             
-            if result.returncode == 0:
-                # Find the output video
-                video_path = self._find_rendered_video(script_path, scene_name, quality)
-                
-                if video_path and os.path.exists(video_path):
-                    print(f"✓ Rendered successfully: {video_path}")
-                    
-                    # Optionally rename
-                    if output_name:
-                        new_path = self._rename_video(video_path, output_name)
-                        return new_path
-                    
-                    return video_path
-                else:
-                    print(f"⚠ Rendering completed but video not found")
-                    return None
-            else:
-                print(f"❌ Rendering failed:")
+            if result.returncode != 0:
+                print(f"❌ Rendering process failed.")
                 print(f"   Error: {result.stderr}")
+                return None
+                
+            print(f"✓ PNG Rendering completed. Stitching video...")
+            
+            # 2. Stitch PNGs to Video using FFmpeg
+            video_path = self._stitch_pngs_to_video(script_path, scene_name, quality)
+            
+            if video_path and os.path.exists(video_path):
+                print(f"✓ Video successfully generated: {video_path}")
+                
+                # Optionally rename
+                if output_name:
+                    new_path = self._rename_video(video_path, output_name)
+                    return new_path
+                
+                return video_path
+            else:
+                print(f"❌ Failed to generate video from images")
                 return None
         
         except subprocess.TimeoutExpired:
-            print(f"❌ Rendering timed out after 10 minutes")
+            print(f"❌ Rendering timed out after 20 minutes")
             return None
         except Exception as e:
             print(f"❌ Rendering error: {e}")
+            return None
+
+    def _stitch_pngs_to_video(self, script_path: str, scene_name: str, quality: str) -> Optional[str]:
+        """
+        Stitch rendered PNG sequence into an MP4 video
+        """
+        try:
+            script_dir = os.path.dirname(os.path.abspath(script_path))
+            script_name = os.path.splitext(os.path.basename(script_path))[0]
+            
+            # Locate images
+            # Manim stores images in media/images/{script_name}/{image_prefix}*.png
+            # For a scene named 'ProveSqrt2Irrational', images are ProveSqrt2Irrational0000.png, etc.
+            # located in media/images/{script_name}/
+            
+            image_dir = os.path.join(script_dir, 'media', 'images', script_name)
+            
+            if not os.path.exists(image_dir):
+                # Try project root media
+                project_root = os.getcwd()
+                image_dir = os.path.join(project_root, 'media', 'images', script_name)
+            
+            if not os.path.exists(image_dir):
+                print(f"❌ Image directory not found: {image_dir}")
+                return None
+
+            # Pattern for ffmpeg
+            # %04d matches 0000, 0001, etc.
+            image_pattern = os.path.join(image_dir, f"{scene_name}%04d.png")
+            
+            # Determine framerate based on quality
+            fps_map = {'l': 15, 'm': 30, 'h': 60, 'k': 60}
+            fps = fps_map.get(quality, 60)
+            
+            # Output file path (place it where Manim usually puts videos for consistency)
+            quality_dirs = {'l': '480p15', 'm': '720p30', 'h': '1080p60', 'k': '2160p60'}
+            quality_dir = quality_dirs.get(quality, '1080p60')
+            
+            output_dir = os.path.join(script_dir, 'media', 'videos', script_name, quality_dir)
+            os.makedirs(output_dir, exist_ok=True)
+            output_file = os.path.join(output_dir, f"{scene_name}.mp4")
+            
+            cmd = [
+                'ffmpeg',
+                '-y', # Overwrite
+                '-framerate', str(fps),
+                '-i', image_pattern,
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p', # Ensure compatibility
+                output_file
+            ]
+            
+            # print(f"   Stitching command: {' '.join(cmd)}")
+            subprocess.run(cmd, capture_output=True, check=True)
+            
+            if os.path.exists(output_file):
+                return output_file
+            return None
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ FFmpeg stitching failed: {e}")
+            return None
+        except Exception as e:
+            print(f"❌ Error stitching video: {e}")
             return None
     
     def _find_rendered_video(self, script_path: str, scene_name: str, quality: str) -> Optional[str]:
