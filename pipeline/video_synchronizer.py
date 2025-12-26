@@ -160,13 +160,13 @@ class TextSlide{index}(Scene):
             with open(temp_script, 'w', encoding='utf-8') as f:
                 f.write(script_content)
             
-            # Render with Manim
+            # Render with Manim - NOW USING PNG FORMAT
             print(f"  📝 Generating text slide for segment {index}...")
             
             cmd = [
                 'manim',
                 '-qh',  # High quality
-                '--format', 'mp4',
+                '--format', 'png',  # Generate PNG sequence instead of mp4
                 '--media_dir', script_dir,
                 temp_script,
                 f'TextSlide{index}'
@@ -180,27 +180,84 @@ class TextSlide{index}(Scene):
             )
             
             if result.returncode == 0:
-                # Find the generated video
-                generated_video = self._find_text_slide_video(script_dir, f'TextSlide{index}')
+                # Stitch the PNGs into a video
+                stitched_video = self._stitch_text_slide_pngs(script_dir, f'temp_text_slide_{index}', f'TextSlide{index}')
                 
-                if generated_video and os.path.exists(generated_video):
-                    # Move to desired location
-                    os.replace(generated_video, output_path)
+                if stitched_video and os.path.exists(stitched_video):
+                    # Move/Rename to desired location
+                    # If paths are different (file system wise), shutil.move/copy is safer, but replace works if same device
+                    import shutil
+                    shutil.move(stitched_video, output_path)
+                    
                     print(f"  ✓ Text slide generated: {os.path.basename(output_path)}")
                     
-                    # Clean up temp script
+                    # Clean up temp script and images
                     try:
                         os.remove(temp_script)
+                        # Clean up images directory? Maybe too aggressive, leaving for now or simple cleanup
                     except:
                         pass
                     
                     return output_path
             
-            print(f"  ⚠ Failed to generate text slide")
+            print(f"  ⚠ Failed to generate text slide (Manim error)")
+            # print(f"STDERR: {result.stderr}") # Uncomment for debugging
             return None
         
         except Exception as e:
             print(f"  ❌ Error generating text slide: {e}")
+            return None
+
+    def _stitch_text_slide_pngs(self, base_dir: str, script_name: str, scene_name: str) -> Optional[str]:
+        """
+        Stitch PNGs for a text slide into a video
+        """
+        try:
+            # Locate images. Manim default: media/images/{script_name}/{scene_name}%04d.png
+            # Or sometimes just images/{script_name}/...
+            possible_image_dirs = [
+                os.path.join(base_dir, 'media', 'images', script_name),
+                os.path.join(base_dir, 'images', script_name),
+                os.path.join(base_dir, 'media', 'images'), # Sometimes scene name is not in folder?
+            ]
+            
+            image_dir = None
+            for d in possible_image_dirs:
+                if os.path.exists(d):
+                    # Check if images are actually there
+                    if any(f.startswith(scene_name) and f.endswith('.png') for f in os.listdir(d)):
+                        image_dir = d
+                        break
+            
+            if not image_dir:
+                print(f"  ⚠ Could not find images for {scene_name} in {base_dir}")
+                return None
+                
+            image_pattern = os.path.join(image_dir, f"{scene_name}%04d.png")
+            
+            # Output file
+            output_dir = os.path.join(base_dir, 'media', 'videos', script_name, '1080p60')
+            os.makedirs(output_dir, exist_ok=True)
+            output_file = os.path.join(output_dir, f"{scene_name}.mp4")
+            
+            cmd = [
+                'ffmpeg',
+                '-y',
+                '-framerate', '60',
+                '-i', image_pattern,
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p',
+                output_file
+            ]
+            
+            subprocess.run(cmd, capture_output=True, check=True)
+            
+            if os.path.exists(output_file):
+                return output_file
+            return None
+            
+        except Exception as e:
+            print(f"  ❌ Error stitching text slide: {e}")
             return None
     
     def _find_text_slide_video(self, base_dir: str, scene_name: str) -> Optional[str]:
@@ -491,7 +548,7 @@ class TextSlide{index}(Scene):
                 'total_duration': sum(s['duration'] for s in synced_segments),
                 'segments': synced_segments
             }
-            file_manager.save_metadata(sync_metadata, 'sync_metadata.json', 'final')
+            file_manager.save_json(sync_metadata, 'sync_metadata.json', 'final')
         
         # Print summary
         print(f"\n{'='*60}")
@@ -541,7 +598,7 @@ class TextSlide{index}(Scene):
             with open(concat_file, 'w', encoding='utf-8') as f:
                 for segment in synced_segments:
                     # FFmpeg requires forward slashes even on Windows
-                    video_path = segment['output_file'].replace('\\', '/')
+                    video_path = os.path.abspath(segment['output_file']).replace('\\', '/')
                     f.write(f"file '{video_path}'\n")
             
             print(f"📋 Concatenating {len(synced_segments)} segments...")
