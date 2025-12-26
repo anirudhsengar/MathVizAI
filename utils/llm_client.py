@@ -1,9 +1,7 @@
 """
-LLM Client wrapper for Azure AI Inference
+LLM Client wrapper for OpenAI
 """
-from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
-from azure.core.credentials import AzureKeyCredential
+from openai import OpenAI
 from typing import Optional
 import config
 
@@ -13,13 +11,10 @@ class LLMClient:
     
     def __init__(self):
         """Initialize the LLM client"""
-        if not config.GITHUB_TOKEN:
-            raise ValueError("GITHUB_TOKEN environment variable not set")
+        if not config.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY environment variable not set")
         
-        self.client = ChatCompletionsClient(
-            endpoint=config.ENDPOINT,
-            credential=AzureKeyCredential(config.GITHUB_TOKEN),
-        )
+        self.client = OpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.MODEL_NAME
     
     def generate_response(
@@ -45,13 +40,13 @@ class LLMClient:
             max_tokens = config.MAX_TOKENS
         
         try:
-            response = self.client.complete(
+            response = self.client.chat.completions.create(
                 messages=[
-                    SystemMessage(system_prompt),
-                    UserMessage(query),
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query},
                 ],
                 temperature=temperature,
-                top_p=config.TOP_P,
+                # top_p=config.TOP_P, # optional, defaults to 1 usually
                 max_tokens=max_tokens,
                 model=self.model
             )

@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-ENDPOINT = "https://models.github.ai/inference"
-MODEL_NAME = "microsoft/Phi-4"
+# API Configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+MODEL_NAME = "gpt-4o"
 
 # Temperature settings for different tasks
 TEMPERATURE_SOLVER = 0.4
