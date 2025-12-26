@@ -38,8 +38,10 @@ VIDEO_FPS = 60
 VIDEO_BACKGROUND = "BLACK"
 
 # Audio configuration
-TTS_MODEL = "neuTTS-air"
-TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air"
+TTS_MODEL = "VibeVoice"
+# TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air" # Deprecated
+VIBE_VOICE_MODEL = "microsoft/VibeVoice-Realtime-0.5B"
+VIBE_VOICE_PRESET_PATH = r"src/vibevoice/demo/voices/streaming_model/en-Carter_man.pt"
 AUDIO_SEGMENT_DURATION = (5, 15)  # Min and max seconds per segment
 AUDIO_FORMAT = "wav"
 AUDIO_SAMPLE_RATE = 24000
