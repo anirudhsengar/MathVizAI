@@ -444,6 +444,9 @@ class VideoRenderer:
             List of tuples (video_path, audio_path) for each scene
         """
         scenes = self.extract_scene_classes(script_path)
+        
+        # Multi-scene rendering - one video per scene
+
         rendered_pairs = [] # Store as (index, (video_path, audio_path)) to sort later
         
         # Match scenes to audio segments (1:1 or distribute)
@@ -502,3 +505,109 @@ class VideoRenderer:
         rendered_pairs = [x[1] for x in results]
         
         return rendered_pairs
+
+    def _render_sections(
+        self,
+        script_path: str,
+        scene_name: str,
+        audio_segments: List[str],
+        output_folder: str,
+        quality: str
+    ) -> List[Tuple[str, Optional[str]]]:
+        """
+        Render a single scene as PNG sequence and stitch to video.
+        This approach bypasses the av library corruption issues.
+        """
+        try:
+            # 1. Run Manim with --format=png (bypasses av library video corruption)
+            quality_flag = f'-q{quality}'
+            script_dir = os.path.dirname(script_path)
+            cmd = ['manim', quality_flag, '--format=png', '--media_dir', script_dir, script_path, scene_name]
+            
+            print(f"   Executing (PNG mode): {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=config.MANIM_TIMEOUT
+            )
+            
+            if result.returncode != 0:
+                print(f"⚠ Manim PNG rendering failed.")
+                print(f"   stderr: {result.stderr[:500] if result.stderr else 'No error output'}")
+                return []
+            
+            print(f"✓ PNG rendering completed. Stitching video...")
+            
+            # 2. Find PNG sequence
+            script_name = os.path.splitext(os.path.basename(script_path))[0]
+            quality_dirs = {'l': '480p15', 'm': '720p30', 'h': '1080p60', 'k': '2160p60'}
+            quality_dir = quality_dirs.get(quality, '1080p60')
+            
+            # Possible image locations with --media_dir
+            possible_image_paths = [
+                os.path.join(script_dir, 'images', script_name),         # --media_dir style
+                os.path.join(script_dir, 'media', 'images', script_name), # default style
+            ]
+            
+            image_dir = None
+            for path in possible_image_paths:
+                if os.path.exists(path):
+                    # Check if there are PNG files
+                    pngs = [f for f in os.listdir(path) if f.endswith('.png') and f.startswith(scene_name)]
+                    if pngs:
+                        image_dir = path
+                        print(f"✓ Found {len(pngs)} PNG files in: {path}")
+                        break
+            
+            if not image_dir:
+                print(f"❌ No PNG files found for scene {scene_name}")
+                return []
+            
+            # 3. Stitch PNGs to video using FFmpeg
+            fps_map = {'l': 15, 'm': 30, 'h': 60, 'k': 60}
+            fps = fps_map.get(quality, 60)
+            
+            # Pattern for ffmpeg input (Manim names images as SceneName0000.png, SceneName0001.png, etc.)
+            image_pattern = os.path.join(image_dir, f"{scene_name}%04d.png")
+            
+            # Ensure output folder exists
+            os.makedirs(output_folder, exist_ok=True)
+            
+            # Output video path
+            full_video_path = os.path.join(output_folder, 'full_scene.mp4')
+            
+            stitch_cmd = [
+                'ffmpeg',
+                '-y',  # Overwrite output
+                '-framerate', str(fps),
+                '-i', image_pattern,
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p',  # Ensure compatibility
+                '-preset', 'medium',
+                full_video_path
+            ]
+            
+            print(f"   Stitching {len([f for f in os.listdir(image_dir) if f.endswith('.png')])} frames...")
+            print(f"   Output path: {full_video_path}")
+            stitch_result = subprocess.run(stitch_cmd, capture_output=True, text=True, timeout=300)
+            
+            if stitch_result.returncode != 0:
+                print(f"❌ FFmpeg failed (exit {stitch_result.returncode})")
+                print(f"   stderr: {stitch_result.stderr[-1000:] if stitch_result.stderr else 'No error output'}")
+            
+            if os.path.exists(full_video_path) and os.path.getsize(full_video_path) > 0:
+                print(f"✓ Stitched full video: {full_video_path}")
+                # Return special signal for Orchestrator
+                return [('FULL_VIDEO_MODE', full_video_path)]
+            else:
+                print(f"❌ FFmpeg stitch failed: {stitch_result.stderr[:500] if stitch_result.stderr else 'Unknown error'}")
+                return []
+            
+        except subprocess.TimeoutExpired:
+            print(f"❌ Rendering timed out")
+            return []
+        except Exception as e:
+            print(f"❌ Section rendering error: {e}")
+            return []
+

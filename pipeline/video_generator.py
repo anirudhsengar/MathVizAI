@@ -106,14 +106,30 @@ LATEX AVAILABLE: NO (CRITICAL)
         
         print(f"  Analzyed Script: Found {segment_count} segments")
         
-        scene_enforcement = """
-CRITICAL SCENE RULES:
-1. Every scene MUST be a separate class (Scene1, Scene2, etc.).
-2. Every scene MUST inherit from Scene (not MovingCameraScene, etc.).
-3. Every scene MUST have a `def construct(self):` method.
-4. Do NOT use `if __name__ == "__main__":`.
-5. Do NOT use deprecated functions like ShowCreation; use Create instead.
-6. Ensure all assets (e.g., SVG, images) are generated or available.
+        scene_enforcement = f"""
+CRITICAL ARCHITECTURE REMINDER:
+1. Generate EXACTLY {segment_count} Scene classes: Scene1, Scene2, ... Scene{segment_count}
+2. Each SceneN class corresponds to [SEGMENT N] from the audio script
+3. DO NOT use a single MathVisualization class
+4. DO NOT use self.next_section()
+5. Each scene will be time-stretched to match audio - aim for ~15-20s of animations per scene
+
+MANDATORY CODE STRUCTURE:
+```python
+from manim import *
+
+class Scene1(Scene):
+    def construct(self):
+        # Content for [SEGMENT 1]
+        ...
+
+class Scene2(Scene):
+    def construct(self):
+        # Content for [SEGMENT 2]
+        ...
+
+# ... Continue for all {segment_count} segments
+```
 """
         
         # RAG / ReAct Loop
@@ -191,13 +207,9 @@ Please generate the complete, runnable Manim script.
         # Clean up the code (remove markdown code blocks if present)
         manim_code = self._clean_code(manim_code)
         
-        # Validate scene count
-        scenes_found = len(re.findall(r'class\s+Scene(\d+)\s*\(Scene\):', manim_code))
-        if scenes_found != segment_count:
-            print(f"⚠ WARNING: Generated {scenes_found} scenes, but expected {segment_count}.")
-            # We could trigger a retry here, but for now just warn
-        else:
-            print(f"✓ Validation passed: {scenes_found} scenes generated.")
+        # Validate multi-scene architecture
+        if "class Scene1(Scene):" not in manim_code:
+             print("⚠ WARNING: Generated script might be missing 'Scene1' class.")
         
         # Save Manim script
         filepath = file_manager.save_text(manim_code, 'manim_visualization.py', 'video')

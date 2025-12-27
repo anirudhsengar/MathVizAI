@@ -647,3 +647,44 @@ class TextSlide{index}(Scene):
         except Exception as e:
             print(f"❌ Error concatenating videos: {e}")
             return None
+
+    def concatenate_audio_files(
+        self,
+        audio_files: List[str],
+        output_path: str
+    ) -> Optional[str]:
+        """
+        Concatenate audio files into a single file
+        """
+        try:
+             # Create concat file list
+            concat_file = os.path.join(
+                os.path.dirname(output_path),
+                'audio_concat_list.txt'
+            )
+            
+            with open(concat_file, 'w', encoding='utf-8') as f:
+                for audio_path in audio_files:
+                    path = os.path.abspath(audio_path).replace('\\', '/')
+                    path = path.replace("'", "'\\''")
+                    f.write(f"file '{path}'\n")
+            
+            cmd = [
+                'ffmpeg',
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', concat_file,
+                '-c', 'copy',
+                '-y',
+                output_path
+            ]
+            
+            subprocess.run(cmd, capture_output=True, check=True)
+            
+            if os.path.exists(output_path):
+                return output_path
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error concatenating audio: {e}")
+            return None

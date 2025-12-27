@@ -284,7 +284,8 @@ Ensure all steps are correct and the proof is rigorous.
                 output_folder=video_output_folder,
                 quality=quality
             )
-            # Convert to dict
+            
+            # Convert to dict - each scene paired with its audio
             rendered_videos = {f"scene_{i+1}": video for i, (video, audio) in enumerate(rendered_pairs)}
         else:
             # Standard rendering without audio
@@ -357,8 +358,9 @@ Ensure all steps are correct and the proof is rigorous.
             'final',
             'synced'
         )
+        os.makedirs(sync_output_folder, exist_ok=True)
         
-        # Synchronize all segments
+        # Synchronize all segments (each video adjusted to match audio duration)
         synced_segments = self.video_synchronizer.synchronize_segments(
             audio_files=audio_files,
             video_files=rendered_videos,
