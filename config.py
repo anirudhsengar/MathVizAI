@@ -57,3 +57,8 @@ DEFAULT_REFERENCE_TEXT = "transcript_17s.txt"
 # Manim configuration
 MANIM_QUALITY = "high"  # Options: low, medium, high, production
 MANIM_FORMAT = "mp4"
+
+# Performance
+MAX_RENDER_WORKERS = 4  # Number of parallel rendering threads
+MANIM_TIMEOUT = 1200    # 20 minutes timeout per scene
+

@@ -5,6 +5,7 @@ from utils.llm_client import LLMClient
 from utils.prompt_loader import PromptLoader
 from utils.file_manager import FileManager
 from pipeline.rag_client import RAGClient
+from pipeline.video_renderer import VideoRenderer
 import config
 import logging
 
@@ -23,6 +24,8 @@ class VideoGenerator:
         """
         self.llm_client = llm_client
         self.prompt_loader = prompt_loader
+        self.system_prompt = self.prompt_loader.load_prompt(config.VIDEO_GENERATOR_PROMPT_PATH)
+        self.video_renderer = VideoRenderer()
         self.system_prompt = self.prompt_loader.load_prompt(config.VIDEO_GENERATOR_PROMPT_PATH)
         
         # Initialize RAG client if enabled
@@ -61,6 +64,43 @@ Configuration Requirements:
 Target Audio Script:
 {audio_script}
 """
+
+        # Check LaTeX availability dynamically
+        is_latex_available = self.video_renderer.check_latex_availability()
+        
+        latex_instruction = ""
+        if is_latex_available:
+            latex_instruction = f"""
+LATEX AVAILABLE: YES
+- Use `MathTex` for all mathematical expressions.
+- You can use standard LaTeX syntax like `\\frac{{a}}{{b}}`, `\\int`, etc.
+- Example: `MathTex(r"a^2 + b^2 = c^2")`
+"""
+        else:
+            latex_instruction = f"""
+LATEX AVAILABLE: NO (CRITICAL)
+- DO NOT USE `MathTex` or `Tex`. It will cause a crash.
+- Use `Text` for EVERYTHING.
+- For math, approximate with text: `Text("x^2 + y^2 = r^2")`
+- Focus on color and placement since you cannot use nice rendering.
+"""
+
+        # Extract segment count to enforce strict 1:1 mapping
+        import re
+        segment_matches = re.findall(r'\[SEGMENT\s+(\d+)\]', audio_script)
+        segment_count = len(segment_matches) if segment_matches else 1
+        
+        print(f"  Analzyed Script: Found {segment_count} segments")
+        
+        scene_enforcement = """
+CRITICAL SCENE RULES:
+1. Every scene MUST be a separate class (Scene1, Scene2, etc.).
+2. Every scene MUST inherit from Scene (not MovingCameraScene, etc.).
+3. Every scene MUST have a `def construct(self):` method.
+4. Do NOT use `if __name__ == "__main__":`.
+5. Do NOT use deprecated functions like ShowCreation; use Create instead.
+6. Ensure all assets (e.g., SVG, images) are generated or available.
+"""
         
         # RAG / ReAct Loop
         final_context = ""
@@ -69,8 +109,9 @@ Target Audio Script:
             print(f"Starting RAG ReAct loop (Max iterations: {config.MAX_RAG_ITERATIONS})")
             
             # Initial context gathering loop
-            history = f"I need to generate a Manim video for the following script:\n{audio_script}\n\n"
+            history = f"I need to generate a Manim video for the following script:\n{audio_script}\n\n{latex_instruction}\n"
             history += "I have access to a vector store of Manim examples (3b1b style) and general Manim code.\n"
+            history += "I want to create visually stunning animations like 3Blue1Brown.\n"
             
             for i in range(config.MAX_RAG_ITERATIONS):
                 # Ask LLM if it needs context
@@ -120,6 +161,10 @@ Example: "QUERY: how to animate neural network layers"
 RETRIEVED CONTEXT / EXAMPLES:
 {final_context}
 
+{scene_enforcement}
+
+{latex_instruction}
+
 Please generate the complete, runnable Manim script.
 """
         
@@ -131,6 +176,14 @@ Please generate the complete, runnable Manim script.
         
         # Clean up the code (remove markdown code blocks if present)
         manim_code = self._clean_code(manim_code)
+        
+        # Validate scene count
+        scenes_found = len(re.findall(r'class\s+Scene(\d+)\s*\(Scene\):', manim_code))
+        if scenes_found != segment_count:
+            print(f"⚠ WARNING: Generated {scenes_found} scenes, but expected {segment_count}.")
+            # We could trigger a retry here, but for now just warn
+        else:
+            print(f"✓ Validation passed: {scenes_found} scenes generated.")
         
         # Save Manim script
         filepath = file_manager.save_text(manim_code, 'manim_visualization.py', 'video')

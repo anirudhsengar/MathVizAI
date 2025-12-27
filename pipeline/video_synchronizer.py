@@ -597,8 +597,10 @@ class TextSlide{index}(Scene):
             
             with open(concat_file, 'w', encoding='utf-8') as f:
                 for segment in synced_segments:
-                    # FFmpeg requires forward slashes even on Windows
+                    # FFmpeg requires forward slashes even on Windows and escaped single quotes
                     video_path = os.path.abspath(segment['output_file']).replace('\\', '/')
+                    # Escape single quotes for FFmpeg concat demuxer: ' becomes '\'
+                    video_path = video_path.replace("'", "'\\''")
                     f.write(f"file '{video_path}'\n")
             
             print(f"📋 Concatenating {len(synced_segments)} segments...")

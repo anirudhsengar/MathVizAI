@@ -9,6 +9,8 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import config
+import concurrent.futures
+import time
 
 
 class VideoRenderer:
@@ -36,9 +38,48 @@ class VideoRenderer:
                 version = result.stdout.strip()
                 print(f"✓ Manim detected: {version}")
                 return True
-            return False
         except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired):
             print("⚠ Manim not found - video rendering will be skipped")
+            return False
+
+    def check_latex_availability(self) -> bool:
+        """Check if LaTeX is available and working by compiling a simple file"""
+        try:
+            # 1. Check if pdflatex exists
+            result = subprocess.run(['pdflatex', '--version'], capture_output=True)
+            if result.returncode != 0:
+                print("⚠ LaTeX (pdflatex) not found")
+                return False
+                
+            # 2. Try to compile a minimal LaTeX file to check for packages
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.tex', mode='w', delete=False) as f:
+                # Use standalone class as Manim relies on it
+                f.write(r"\documentclass{standalone}\usepackage{amsmath}\begin{document}Test\end{document}")
+                tex_path = f.name
+                
+            cmd = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error', '-output-directory', os.path.dirname(tex_path), tex_path]
+            result = subprocess.run(cmd, capture_output=True, timeout=10)
+            
+            # Cleanup
+            try:
+                os.remove(tex_path)
+                os.remove(tex_path.replace('.tex', '.log'))
+                os.remove(tex_path.replace('.tex', '.aux'))
+                os.remove(tex_path.replace('.tex', '.pdf'))
+            except:
+                pass
+
+            if result.returncode == 0:
+                print("✓ LaTeX detected and working (packages available)")
+                return True
+            else:
+                print("⚠ LaTeX detected but compilation failed (missing packages?)")
+                print("  Falling back to Text() to ensure stability.")
+                return False
+                
+        except Exception as e:
+            print(f"⚠ LaTeX check failed: {e}")
             return False
     
     def is_available(self) -> bool:
@@ -106,7 +147,7 @@ class VideoRenderer:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=1200  # 20 minute timeout for image generation
+                timeout=config.MANIM_TIMEOUT  # Use configured timeout
             )
             
             if result.returncode != 0:
@@ -306,29 +347,45 @@ class VideoRenderer:
         
         rendered_videos = {}
         
-        # Render each scene
-        for idx, scene_name in enumerate(scenes, 1):
-            # Custom output name with index
-            output_name = f"scene_{idx:02d}_{scene_name}"
-            
-            video_path = self.render_scene(
-                script_path=script_path,
-                scene_name=scene_name,
-                quality=quality,
-                output_name=None  # We'll copy later
-            )
-            
-            if video_path:
-                # Copy to output folder
-                final_path = self._copy_to_output_folder(
-                    video_path,
-                    output_folder,
-                    output_name
-                )
-                rendered_videos[scene_name] = final_path
-            else:
-                print(f"⚠ Failed to render: {scene_name}")
+        # Render scenes in parallel
+        max_workers = getattr(config, 'MAX_RENDER_WORKERS', 4)
+        print(f"   Starting parallel rendering (workers={max_workers})...")
         
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_scene = {}
+            
+            for idx, scene_name in enumerate(scenes, 1):
+                # Custom output name with index
+                output_name = f"scene_{idx:02d}_{scene_name}"
+                
+                # Submit task
+                future = executor.submit(
+                    self.render_scene,
+                    script_path,
+                    scene_name,
+                    quality,
+                    None # Output name handled later to avoid confusion
+                )
+                future_to_scene[future] = (scene_name, output_name)
+            
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_scene):
+                scene_name, output_name = future_to_scene[future]
+                try:
+                    video_path = future.result()
+                    if video_path:
+                        # Copy to output folder
+                        final_path = self._copy_to_output_folder(
+                            video_path,
+                            output_folder,
+                            output_name
+                        )
+                        rendered_videos[scene_name] = final_path
+                    else:
+                        print(f"⚠ Failed to render: {scene_name}")
+                except Exception as exc:
+                    print(f"❌ {scene_name} generated an exception: {exc}")
+
         # Print summary
         print(f"\n{'='*60}")
         print(f"RENDERING SUMMARY")
@@ -338,7 +395,9 @@ class VideoRenderer:
         
         if rendered_videos:
             print(f"\nRendered videos:")
-            for scene, path in rendered_videos.items():
+            # Sort by scene index for better readability
+            sorted_scenes = sorted(rendered_videos.items(), key=lambda x: x[1])
+            for scene, path in sorted_scenes:
                 print(f"  • {scene}: {path}")
         
         return rendered_videos
@@ -385,7 +444,7 @@ class VideoRenderer:
             List of tuples (video_path, audio_path) for each scene
         """
         scenes = self.extract_scene_classes(script_path)
-        rendered_pairs = []
+        rendered_pairs = [] # Store as (index, (video_path, audio_path)) to sort later
         
         # Match scenes to audio segments (1:1 or distribute)
         num_scenes = len(scenes)
@@ -393,26 +452,53 @@ class VideoRenderer:
         
         print(f"\n📊 Alignment: {num_scenes} scenes, {num_audio} audio segments")
         
-        for idx, scene_name in enumerate(scenes):
-            # Determine which audio segment to pair
-            if num_audio > 0:
-                audio_idx = min(idx, num_audio - 1)  # Use last audio if scenes > audio
-                audio_file = audio_segments[audio_idx]
-            else:
-                audio_file = None
+        # Parallel execution
+        max_workers = getattr(config, 'MAX_RENDER_WORKERS', 4)
+        print(f"   Starting parallel rendering with audio alignment (workers={max_workers})...")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {}
             
-            # Render scene
-            video_path = self.render_scene(script_path, scene_name, quality)
-            
-            if video_path:
-                final_video = self._copy_to_output_folder(
-                    video_path,
-                    output_folder,
-                    f"scene_{idx+1:02d}_{scene_name}"
-                )
-                rendered_pairs.append((final_video, audio_file))
+            for idx, scene_name in enumerate(scenes):
+                # Determine which audio segment to pair
+                if num_audio > 0:
+                    audio_idx = min(idx, num_audio - 1)
+                    audio_file = audio_segments[audio_idx]
+                else:
+                    audio_file = None
                 
-                if audio_file:
-                    print(f"  📎 Paired with: {os.path.basename(audio_file)}")
+                # Submit task
+                future = executor.submit(
+                    self.render_scene,
+                    script_path,
+                    scene_name,
+                    quality
+                )
+                future_to_idx[future] = (idx, scene_name, audio_file)
+            
+            # Process results
+            results = []
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx, scene_name, audio_file = future_to_idx[future]
+                try:
+                    video_path = future.result()
+                    if video_path:
+                        final_video = self._copy_to_output_folder(
+                            video_path,
+                            output_folder,
+                            f"scene_{idx+1:02d}_{scene_name}"
+                        )
+                        results.append((idx, (final_video, audio_file)))
+                        
+                        if audio_file:
+                            print(f"  ✓ {scene_name}: Paired with {os.path.basename(audio_file)}")
+                    else:
+                        print(f"  ❌ {scene_name}: Failed to render")
+                except Exception as exc:
+                    print(f"  ❌ {scene_name} generated an exception: {exc}")
+        
+        # Sort results by index to maintain valid order
+        results.sort(key=lambda x: x[0])
+        rendered_pairs = [x[1] for x in results]
         
         return rendered_pairs
