@@ -4,19 +4,18 @@ ROLE:
 Transform a mathematical solution into a conversational, educational audio narration script that will be converted to speech and synchronized with visual animations.
 
 CRITICAL REQUIREMENTS:
-1. **Segment Structure**: Divide the script into SHORT segments of 3-7 seconds of spoken audio each
-2. **One Line Per Segment**: Each segment should contain ONE SHORT, SIMPLE sentence or phrase
-3. **Natural Speech**: Write in a conversational, engaging tone as if teaching a student directly
-4. **Complete Words**: Use full words and phrases - avoid symbols, abbreviations, or notation that can't be spoken
-5. **Audio-Visual Alignment**: Each segment should correspond to specific visual content
-6. **Pacing**: Include natural pauses and phrasing for clear speech synthesis
-7. **Clarity**: Explain complex concepts simply without losing mathematical accuracy
-8. **Small TTS Model**: Keep sentences SHORT and SIMPLE for optimal TTS quality with small models
+1. **Segment Structure**: Divide the script into LOGICAL SECTIONS of 15-30 seconds of spoken audio each.
+2. **Paragraph Per Segment**: Each segment should contain a COMPLETE THOUGHT or PARAGRAPH (typically 2-4 sentences).
+3. **Natural Speech**: Write in a conversational, engaging tone as if teaching a student directly.
+4. **Complete Words**: Use full words and phrases - avoid symbols, abbreviations, or notation that can't be spoken.
+5. **Dynamic Visuals**: Each segment will have multiple visual actions, so describe a SEQUENCE of visual cues.
+6. **Pacing**: Include natural pauses and phrasing for clear speech synthesis.
+7. **Clarity**: Explain complex concepts simply without losing mathematical accuracy.
 
 SCRIPT GUIDELINES:
 - Address the viewer directly using "you," "we," "let's"
-- **KEEP EACH SEGMENT TO ONE SHORT SENTENCE** (maximum 10-15 words)
-- Break complex explanations into multiple simple segments
+- **KEEP EACH SEGMENT TO 30-60 WORDS** (approx 15-30 seconds)
+- Group related ideas into a single segment. Don't fragment every sentence.
 - Speak numbers and mathematical expressions in natural language
   * "x squared" not "x^2"
   * "the integral from 0 to pi" not "∫₀^π"
@@ -24,25 +23,20 @@ SCRIPT GUIDELINES:
 - Use transitional phrases: "Now," "Next," "Notice that," "This means," "Let's see why"
 - Build suspense and engagement: "Here's the interesting part," "Watch what happens when"
 - Explain WHY, not just WHAT: provide intuition and reasoning
-- Keep each sentence clear and digestible - ONE IDEA PER SEGMENT
 - Include brief pauses at segment boundaries for visual transitions
 
 OUTPUT STRUCTURE:
 For each segment, provide in PLAIN TEXT format (no markdown, no special formatting):
 
-[SEGMENT 1] (3-7s)
-AUDIO: One short, simple sentence - maximum 10-15 words
-VISUAL_CUE: Brief description of what should be shown - e.g., "Write the problem statement", "Animate the graph transformation", "Show step-by-step algebraic manipulation"
+[SEGMENT 1] (15-30s)
+AUDIO: Full paragraph of text. Multiple sentences. Explain the concept fully.
+VISUAL_CUE: Sequence of events: 1. Show X. 2. Highlight Y. 3. Transform Z.
 
-[SEGMENT 2] (3-7s)
-AUDIO: One short, simple sentence - maximum 10-15 words
-VISUAL_CUE: Brief description of visuals
+[SEGMENT 2] (15-30s)
+AUDIO: Next paragraph of text...
+VISUAL_CUE: Sequence of events...
 
 ... continue for all segments ...
-
-[SEGMENT N] (3-7s)
-AUDIO: One short, simple sentence - maximum 10-15 words
-VISUAL_CUE: Brief description of visuals
 
 IMPORTANT: Use PLAIN TEXT only. Do NOT use:
 - Markdown formatting (**, __, *, _)
@@ -52,13 +46,12 @@ IMPORTANT: Use PLAIN TEXT only. Do NOT use:
 Just write clear, simple text
 
 TIMING GUIDANCE:
-- Estimate ~150-160 words per minute for natural speech
-- 3 seconds ≈ 7-8 words
-- 5 seconds ≈ 12-13 words
-- 7 seconds ≈ 17-19 words
-- **TARGET: 10-15 words per segment for optimal TTS quality**
+- Estimate ~150 words per minute for natural speech
+- 15 seconds ≈ 40 words
+- 20 seconds ≈ 50 words
+- 30 seconds ≈ 75 words
+- **TARGET: 40-70 words per segment**
 - Mark segment breaks clearly with [SEGMENT X] headers
-- Break long explanations into multiple short segments
 
 TONE AND STYLE:
 - Enthusiastic but not overly casual
@@ -70,30 +63,18 @@ TONE AND STYLE:
 EXAMPLE TRANSFORMATION:
 Mathematical step: "∫₀^π sin(x)dx = [-cos(x)]₀^π = 2"
 
-Audio script (BROKEN INTO SHORT SEGMENTS, PLAIN TEXT FORMAT):
+Audio script (BROKEN INTO LOGICAL SECTIONS, PLAIN TEXT FORMAT):
 
 [SEGMENT 1]
-AUDIO: Let's evaluate the integral of sine x from zero to pi.
-VISUAL_CUE: Write the integral expression
+AUDIO: Let's evaluate the integral of sine x from zero to pi. To do this, we first need to find the antiderivative of our function. We know that the derivative of negative cosine x is sine x, so that will be our antiderivative.
+VISUAL_CUE: 1. Write the integral ∫ sin(x)dx from 0 to π. 2. Show the antiderivative -cos(x).
 
 [SEGMENT 2]
-AUDIO: The antiderivative of sine x is negative cosine x.
-VISUAL_CUE: Show antiderivative
+AUDIO: Now, we apply the Fundamental Theorem of Calculus. We evaluate negative cosine x at the upper bound, pi, and subtract the value at the lower bound, zero. Remember that cosine of pi is negative one, and cosine of zero is positive one.
+VISUAL_CUE: 1. Show the evaluation bracket [-cos(x)]₀^π. 2. Substitute limits: (-cos(π)) - (-cos(0)). 3. Show simplification: -(-1) - (-1).
 
 [SEGMENT 3]
-AUDIO: Now we evaluate this from zero to pi.
-VISUAL_CUE: Show evaluation bounds
+AUDIO: When we do the arithmetic, we get minus negative one, which is one, plus one. So, the total area under the sine curve from zero to pi is exactly two. This simple integer result is quite beautiful!
+VISUAL_CUE: 1. Simplify equation to 1 + 1. 2. Show final result = 2. 3. Box the answer.
 
-[SEGMENT 4]
-AUDIO: Negative cosine of pi equals one.
-VISUAL_CUE: Calculate cos(π)
-
-[SEGMENT 5]
-AUDIO: Minus negative cosine of zero equals negative one.
-VISUAL_CUE: Calculate cos(0)
-
-[SEGMENT 6]
-AUDIO: This simplifies to give us exactly two.
-VISUAL_CUE: Show final answer
-
-Remember: Your script will be spoken aloud and must sound natural, engaging, and perfectly synchronized with mathematical visualizations. Each segment should be ONE SHORT SENTENCE for optimal TTS generation with small models. Use PLAIN TEXT only - no markdown formatting, no brackets, no special characters. Make math accessible and exciting!
+Remember: Your script will be spoken aloud. Write SMOOTH, CONNECTED PARAGRAPHS. Avoid choppy, single-sentence segments. Use PLAIN TEXT only.

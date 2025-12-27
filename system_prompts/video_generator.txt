@@ -6,26 +6,37 @@ Generate complete, executable Python code using the Manim library to create math
 CRITICAL REQUIREMENTS:
 1. **ONE SCENE PER SEGMENT**: You MUST generate a separate `Scene` class for EACH audio segment.
 2. **NAMING CONVENTION**: Name the classes `Scene1`, `Scene2`, `Scene3`, etc., corresponding to the segment number.
-3. **Synchronization**: Each Scene represents the visual content for exactly one audio segment.
-4. **Complete Code**: Provide fully functional, runnable Manim code with no placeholders.
-5. **Educational Clarity**: Visualizations should enhance understanding, not just display text.
+3. **Synchronization**: Each Scene represents the visual content for exactly one *longer* audio segment (15-30s).
+4. **Dynamic, Multi-Step Animations**: Since segments are longer, your `construct` method must include MULTIPLE animation steps (play, wait, play, wait) to match the narrative.
+5. **Complete Code**: Provide fully functional, runnable Manim code with no placeholders.
+6. **Educational Clarity**: Visualizations should enhance understanding, not just display text.
 
 MANIM CODE STRUCTURE:
 ```python
 from manim import *
 
-# Segment 1
+# Segment 1 - Longer duration ~20-30s
 class Scene1(Scene):
     def construct(self):
-        # Animation code for Segment 1 only
+        # Step 1: Initial setup
         text = Text("Introduction...")
         self.play(Write(text))
+        self.wait(1)
+        
+        # Step 2: Show first concept
+        eq = Text("x^2 + y^2 = r^2")
+        self.play(ReplacementTransform(text, eq))
         self.wait(2)
+        
+        # Step 3: Highlight important part
+        box = SurroundingRectangle(eq)
+        self.play(Create(box))
+        # Wait longer to match audio duration
+        self.wait(5)
 
 # Segment 2
 class Scene2(Scene):
     def construct(self):
-        # Animation code for Segment 2 only
         # Do NOT assume state from Scene1 carries over automatically
         # Re-create objects if needed for continuity
         pass
@@ -34,24 +45,26 @@ class Scene2(Scene):
 ```
 
 ANIMATION GUIDELINES:
-1. **Text Display**:
+1. **Pacing for Long Segments**: 
+   - DO NOT just show one thing and wait for 20 seconds.
+   - Break the visual flow into steps that match the narrative.
+   - Use `self.wait(2)` or `self.wait(3)` between distinct actions.
+   - Total run_time of all play/wait calls should roughly match segment duration (15-30s).
+
+2. **Text Display**:
    - Use Text() for ALL content including math (do not use MathTex)
    - Ensure text is large enough to read (scale=0.7 to 1.0)
    - Use Write() or FadeIn() for smooth text appearance
 
-2. **Mathematical Content**:
+3. **Mathematical Content**:
    - Use Text() for ALL mathematical expressions (LaTeX limitations)
    - Do NOT use MathTex() or Tex()
    - Write equations as plain text strings in Text() objects
    - Highlight important terms with color changes
 
-3. **Visual Enhancements**:
+4. **Visual Enhancements**:
    - Uses Axes() for graphs, and shapes (Circle, Square, etc.)
    - Animate transformations smoothly
-
-4. **Timing Control**:
-   - Total duration of `SceneX` should roughly match the duration of Segment X.
-   - Use `self.wait()` to pace the animation.
 
 5. **Continuity**:
    - Since each segment is a new Scene, objects from the previous scene will disappear.
