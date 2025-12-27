@@ -65,24 +65,18 @@ class PipelineOrchestrator:
         # Phase 2: Generate audio script
         audio_script = self.script_writer.write_script(solution, file_manager)
         
-        # Phase 3: Generate audio files (TTS) - MOVED UP to provide timing info
-        audio_files = self._generate_audio(file_manager)
+        # Phase 3: Generate audio files (TTS) - Returns segment results with phrase timing
+        segment_results = self._generate_audio(file_manager)
         
-        # Calculate audio durations for video timing
-        audio_metadata = []
-        if audio_files and self.video_synchronizer.is_available():
-            for file_path in audio_files:
-                duration = self.video_synchronizer.get_duration(file_path)
-                audio_metadata.append({
-                    'file': file_path,
-                    'duration': duration if duration else 0
-                })
+        # Extract audio file paths for backward compatibility
+        audio_files = [r['audio_file'] for r in segment_results] if segment_results else []
         
-        # Phase 4: Generate Manim video script (now with timing context)
+        # Phase 4: Generate Manim video script with PHRASE-LEVEL TIMING
+        # This is the key change - we now pass full phrase timing data
         manim_script = self.video_generator.generate_manim_script(
             audio_script, 
             file_manager,
-            audio_metadata=audio_metadata
+            segment_results=segment_results  # Pass full phrase timing data
         )
         
         # Phase 5: Render videos from Manim script
@@ -204,13 +198,18 @@ Ensure all steps are correct and the proof is rigorous.
     
     def _generate_audio(self, file_manager: FileManager) -> list:
         """
-        Generate audio files from script segments
+        Generate audio files from script segments with phrase-level timing.
         
         Args:
             file_manager: File manager instance
         
         Returns:
-            List of generated audio file paths
+            List of segment result dictionaries containing:
+            - 'audio_file': path to generated audio
+            - 'segment_number': segment number
+            - 'duration': total duration in seconds
+            - 'text': original text
+            - 'phrases': list of phrase timing dicts with {text, start, end, duration}
         """
         if not self.tts_generator.is_available():
             print("\n⚠ TTS not available. Skipping audio generation.")
@@ -226,13 +225,13 @@ Ensure all steps are correct and the proof is rigorous.
         with open(segments_path, 'r', encoding='utf-8') as f:
             segments = json.load(f)
         
-        # Generate audio
-        audio_files = self.tts_generator.generate_audio_segments(
+        # Generate audio with phrase timing
+        segment_results = self.tts_generator.generate_audio_segments(
             segments=segments,
             file_manager=file_manager
         )
         
-        return audio_files
+        return segment_results
     
     def _render_videos(self, file_manager: FileManager, audio_files: list) -> dict:
         """

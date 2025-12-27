@@ -1,6 +1,7 @@
 """
 Video Generator module - creates Manim visualization scripts
 """
+import re
 from utils.llm_client import LLMClient
 from utils.prompt_loader import PromptLoader
 from utils.file_manager import FileManager
@@ -38,35 +39,60 @@ class VideoGenerator:
                 logger.error(f"Failed to initialize RAG Client: {e}")
                 print("⚠ RAG Client initialization failed. Continuing without RAG.")
     
-    def generate_manim_script(self, audio_script: str, file_manager: FileManager, audio_metadata: list = None) -> str:
+    def generate_manim_script(self, audio_script: str, file_manager: FileManager, segment_results: list = None) -> str:
         """
-        Generate Manim Python script from audio script
+        Generate Manim Python script from audio script with phrase-level synchronization.
         
         Args:
             audio_script: The segmented audio script
             file_manager: File manager for saving outputs
-            audio_metadata: Optional list of dicts containing 'duration' for each segment
+            segment_results: List of segment result dicts from TTS with phrase timing:
+                            Each contains 'phrases': [{'text', 'start', 'end', 'duration'}, ...]
         
         Returns:
             Manim Python script as string
         """
         print(f"\n{'='*60}")
-        print(f"VIDEO GENERATOR (Context-Aware)")
+        print(f"VIDEO GENERATOR (Phrase-Synchronized)")
         print(f"{'='*60}")
         
-        # Format audio duration info if available
-        duration_info = ""
-        if audio_metadata:
-            duration_info = "\nAUDIO TIMINGS (CRITICAL: You MUST fill these exact durations):\n"
-            duration_info += "Strategies to fill time:\n"
-            duration_info += "1. Use `run_time=2` or `run_time=3` for complex writes/draws.\n"
-            duration_info += "2. Add `self.wait(1)` or `self.wait(2)` BETWEEN animations, not just at the end.\n"
-            duration_info += "3. If the audio is long, break the animation into smaller steps.\n"
-            for i, meta in enumerate(audio_metadata):
-                duration = meta.get('duration', 0)
-                duration_info += f"- Segment {i+1}: {duration:.2f} seconds\n"
+        # Build phrase-level timing instructions - THIS IS THE KEY CHANGE
+        phrase_timing_info = ""
+        if segment_results:
+            phrase_timing_info = """
+=============================================================================
+PHRASE-LEVEL ANIMATION SYNCHRONIZATION (CRITICAL - READ CAREFULLY)
+=============================================================================
+
+Your animations MUST be synchronized with the audio phrases below.
+Each phrase has an EXACT duration - your animation run_time MUST match it.
+
+**THE RULE**: For each phrase, create ONE animation block with run_time equal to the phrase duration.
+DO NOT use self.wait() to fill time. The animation should BE the content.
+
+Example for a 3.5 second phrase:
+```python
+# PHRASE: "Let's explore the parabola." (3.5s)
+parabola = FunctionGraph(lambda x: x**2, x_range=[-2, 2], color=BLUE)
+self.play(Create(parabola), run_time=3.5)
+```
+
+PHRASES BY SEGMENT:
+"""
+            for seg in segment_results:
+                seg_num = seg.get('segment_number', 1)
+                duration = seg.get('duration', 0)
+                phrases = seg.get('phrases', [])
+                
+                phrase_timing_info += f"\n--- SEGMENT {seg_num} (Total: {duration:.1f}s, {len(phrases)} phrases) ---\n"
+                
+                for i, phrase in enumerate(phrases, 1):
+                    p_text = phrase.get('text', '')[:80]
+                    p_duration = phrase.get('duration', 0)
+                    phrase_timing_info += f"  PHRASE {i} ({p_duration:.2f}s): \"{p_text}{'...' if len(phrase.get('text', '')) > 80 else ''}\"\n"
+                    phrase_timing_info += f"    → Animation with run_time={p_duration:.2f}\n"
         
-        # Base configuration info
+        # Base configuration info  
         config_info = f"""
 Configuration Requirements:
 - Resolution: {config.VIDEO_RESOLUTION}
@@ -76,7 +102,7 @@ Configuration Requirements:
 
 Target Audio Script:
 {audio_script}
-{duration_info}
+{phrase_timing_info}
 """
 
         # Check LaTeX availability dynamically
@@ -104,32 +130,62 @@ LATEX AVAILABLE: NO (CRITICAL)
         segment_matches = re.findall(r'\[SEGMENT\s+(\d+)\]', audio_script)
         segment_count = len(segment_matches) if segment_matches else 1
         
-        print(f"  Analzyed Script: Found {segment_count} segments")
-        
+        print(f"  Analyzed Script: Found {segment_count} segments")
+        if segment_results:
+            total_phrases = sum(len(s.get('phrases', [])) for s in segment_results)
+            print(f"  Total Phrases for Synchronization: {total_phrases}")
+
         scene_enforcement = f"""
-CRITICAL ARCHITECTURE REMINDER:
+CRITICAL ARCHITECTURE - PHRASE-SYNCHRONIZED SCENES:
+=====================================================
+
 1. Generate EXACTLY {segment_count} Scene classes: Scene1, Scene2, ... Scene{segment_count}
 2. Each SceneN class corresponds to [SEGMENT N] from the audio script
-3. DO NOT use a single MathVisualization class
-4. DO NOT use self.next_section()
-5. Each scene will be time-stretched to match audio - aim for ~30-60s of animations per scene (deep-dive content)
+3. **INSIDE each Scene**: Create animations for EACH PHRASE with matching run_time values
+4. DO NOT use a single MathVisualization class
+5. DO NOT use self.next_section()
+6. DO NOT add extra self.wait() calls - let the run_time handle all timing
 
-MANDATORY CODE STRUCTURE:
+MANDATORY CODE PATTERN FOR PHRASE SYNCHRONIZATION:
 ```python
 from manim import *
 
 class Scene1(Scene):
     def construct(self):
-        # Content for [SEGMENT 1]
-        ...
+        # PHRASE 1: "Let's explore the parabola." (3.5s)
+        title = Text("The Parabola", color=BLUE).scale(0.9)
+        self.play(Write(title), run_time=3.5)
+        
+        # PHRASE 2: "Notice how it curves upward." (2.8s)
+        parabola = FunctionGraph(lambda x: x**2, x_range=[-2, 2], color=YELLOW)
+        self.play(FadeOut(title), Create(parabola), run_time=2.8)
+        
+        # PHRASE 3: "The vertex is at the origin." (3.2s)
+        dot = Dot(ORIGIN, color=RED).scale(1.5)
+        label = Text("Vertex", color=RED).scale(0.6).next_to(dot, DOWN)
+        self.play(
+            Create(dot), 
+            Write(label),
+            Indicate(dot, scale_factor=1.5),
+            run_time=3.2
+        )
+        
+        # Each phrase becomes ONE self.play() call with matching run_time
+        # This ensures perfect sync with audio
 
 class Scene2(Scene):
     def construct(self):
-        # Content for [SEGMENT 2]
+        # ... Continue for SEGMENT 2's phrases
         ...
 
 # ... Continue for all {segment_count} segments
 ```
+
+KEY PRINCIPLES:
+- ONE self.play() call per phrase
+- run_time = phrase duration (to the decimal)
+- Chain multiple animations in one play() call to fill time beautifully
+- Use transforms, color changes, and movement to keep visuals engaging
 """
         
         # RAG / ReAct Loop
@@ -223,13 +279,14 @@ Please generate the complete, runnable Manim script.
     
     def _clean_code(self, code: str) -> str:
         """
-        Clean up generated code by removing markdown artifacts
+        Clean up generated code by removing markdown artifacts and validating syntax.
+        Also attempts to fix common truncation issues from LLM output.
         
         Args:
             code: Raw code from LLM
         
         Returns:
-            Cleaned code
+            Cleaned and validated code
         """
         # Remove markdown code blocks
         if '```python' in code:
@@ -241,7 +298,125 @@ Please generate the complete, runnable Manim script.
             if len(parts) >= 2:
                 code = parts[1]
         
-        return code.strip()
+        code = code.strip()
+        
+        # Validate and fix syntax errors
+        code = self._validate_and_fix_syntax(code)
+        
+        return code
+    
+    def _validate_and_fix_syntax(self, code: str) -> str:
+        """
+        Validate Python syntax and attempt to fix common LLM truncation issues.
+        
+        Args:
+            code: Python code to validate
+        
+        Returns:
+            Fixed code if possible
+        """
+        import ast
+        
+        # First, try to compile the code as-is
+        try:
+            ast.parse(code)
+            return code  # Code is valid
+        except SyntaxError as e:
+            print(f"⚠ Syntax error detected at line {e.lineno}: {e.msg}")
+            print("  Attempting to fix truncation issues...")
+        
+        # Common fix: Remove incomplete lines at the end
+        lines = code.split('\n')
+        
+        # Try progressively removing lines from the end until code is valid
+        for i in range(min(20, len(lines)), 0, -1):
+            # Remove last i lines
+            truncated_code = '\n'.join(lines[:-i])
+            
+            # Check if this creates valid Python
+            try:
+                ast.parse(truncated_code)
+                print(f"  ✓ Fixed by removing {i} incomplete line(s) at end")
+                
+                # Add a placeholder completion for the last Scene if needed
+                if 'class Scene' in truncated_code:
+                    # Find the last Scene class
+                    last_scene_match = None
+                    for match in re.finditer(r'class (Scene\d+)\(Scene\):', truncated_code):
+                        last_scene_match = match
+                    
+                    if last_scene_match:
+                        last_scene_name = last_scene_match.group(1)
+                        # Check if the last scene has a complete construct method
+                        last_scene_start = last_scene_match.start()
+                        after_last_scene = truncated_code[last_scene_start:]
+                        
+                        # If construct has no content or is incomplete, add placeholder
+                        if 'def construct(self):' in after_last_scene:
+                            lines_after = after_last_scene.split('\n')
+                            # Check if there's actual content after construct
+                            has_content = False
+                            for line in lines_after[1:]:  # Skip the class line
+                                if 'def construct' in line:
+                                    continue
+                                if line.strip() and not line.strip().startswith('#'):
+                                    has_content = True
+                                    break
+                            
+                            if not has_content:
+                                # Add a simple pass or placeholder
+                                truncated_code = truncated_code.rstrip() + "\n        # [Truncated - placeholder]\n        self.wait(1)"
+                
+                return truncated_code
+                
+            except SyntaxError:
+                continue
+        
+        # If we couldn't fix it automatically, try a more aggressive approach
+        # Find the last complete Scene class
+        print("  ⚠ Could not auto-fix. Attempting to extract complete scenes only...")
+        
+        scene_pattern = r'(class Scene\d+\(Scene\):.*?)(?=class Scene\d+\(Scene\):|$)'
+        matches = list(re.finditer(scene_pattern, code, re.DOTALL))
+        
+        if matches:
+            complete_scenes = []
+            for match in matches:
+                scene_code = match.group(1).strip()
+                try:
+                    # Check if this individual scene is valid
+                    test_code = "from manim import *\n\n" + scene_code
+                    ast.parse(test_code)
+                    complete_scenes.append(scene_code)
+                except SyntaxError:
+                    # Try to fix this scene
+                    lines = scene_code.split('\n')
+                    for i in range(1, min(10, len(lines))):
+                        try:
+                            fixed_scene = '\n'.join(lines[:-i])
+                            test_code = "from manim import *\n\n" + fixed_scene
+                            ast.parse(test_code)
+                            # Add placeholder content if needed
+                            if 'self.play' not in fixed_scene and 'self.wait' not in fixed_scene:
+                                fixed_scene += "\n        self.wait(1)  # [Truncated placeholder]"
+                            complete_scenes.append(fixed_scene)
+                            break
+                        except SyntaxError:
+                            continue
+            
+            if complete_scenes:
+                fixed_code = "from manim import *\n\n" + "\n\n".join(complete_scenes)
+                try:
+                    ast.parse(fixed_code)
+                    print(f"  ✓ Extracted {len(complete_scenes)} complete scene(s)")
+                    return fixed_code
+                except SyntaxError:
+                    pass
+        
+        # Last resort: return the original with a warning
+        print("  ❌ Could not fix syntax errors. Rendering may fail.")
+        return code
+
     
     def _generate_rendering_instructions(self, script_path: str) -> str:
         """
