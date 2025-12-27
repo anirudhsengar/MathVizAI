@@ -42,7 +42,8 @@ TTS_MODEL = "VibeVoice"
 # TTS_REPO_PATH = r"c:\Users\aniru\Desktop\GitHub\neutts-air" # Deprecated
 VIBE_VOICE_MODEL = "microsoft/VibeVoice-Realtime-0.5B"
 VIBE_VOICE_PRESET_PATH = r"src/vibevoice/demo/voices/streaming_model/en-Carter_man.pt"
-AUDIO_SEGMENT_DURATION = (10, 30)  # Min and max seconds per segment
+# AUDIO_SEGMENT_DURATION = (10, 30)  # Disabled: now content-driven
+DEEP_DIVE_MODE = True  # Generate comprehensive, detailed content
 AUDIO_FORMAT = "wav"
 AUDIO_SAMPLE_RATE = 24000
 
@@ -60,5 +61,5 @@ MANIM_FORMAT = "mp4"
 
 # Performance
 MAX_RENDER_WORKERS = 4  # Number of parallel rendering threads
-MANIM_TIMEOUT = 1200    # 20 minutes timeout per scene
+MANIM_TIMEOUT = 1800    # 30 minutes timeout per scene (for deep-dive content)
 

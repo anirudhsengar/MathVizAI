@@ -112,7 +112,7 @@ CRITICAL ARCHITECTURE REMINDER:
 2. Each SceneN class corresponds to [SEGMENT N] from the audio script
 3. DO NOT use a single MathVisualization class
 4. DO NOT use self.next_section()
-5. Each scene will be time-stretched to match audio - aim for ~15-20s of animations per scene
+5. Each scene will be time-stretched to match audio - aim for ~30-60s of animations per scene (deep-dive content)
 
 MANDATORY CODE STRUCTURE:
 ```python
