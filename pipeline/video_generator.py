@@ -145,6 +145,7 @@ CRITICAL ARCHITECTURE - PHRASE-SYNCHRONIZED SCENES:
 4. DO NOT use a single MathVisualization class
 5. DO NOT use self.next_section()
 6. DO NOT add extra self.wait() calls - let the run_time handle all timing
+7. **ALWAYS FadeOut old content** when transitioning between phrases (CRITICAL!)
 
 MANDATORY CODE PATTERN FOR PHRASE SYNCHRONIZATION:
 ```python
@@ -157,10 +158,16 @@ class Scene1(Scene):
         self.play(Write(title), run_time=3.5)
         
         # PHRASE 2: "Notice how it curves upward." (2.8s)
+        # *** ALWAYS FadeOut previous content! ***
         parabola = FunctionGraph(lambda x: x**2, x_range=[-2, 2], color=YELLOW)
-        self.play(FadeOut(title), Create(parabola), run_time=2.8)
+        self.play(
+            FadeOut(title),  # <-- CLEAR OLD CONTENT
+            Create(parabola), 
+            run_time=2.8
+        )
         
         # PHRASE 3: "The vertex is at the origin." (3.2s)
+        # Keep parabola (it's relevant), but add new elements
         dot = Dot(ORIGIN, color=RED).scale(1.5)
         label = Text("Vertex", color=RED).scale(0.6).next_to(dot, DOWN)
         self.play(
@@ -170,12 +177,19 @@ class Scene1(Scene):
             run_time=3.2
         )
         
-        # Each phrase becomes ONE self.play() call with matching run_time
-        # This ensures perfect sync with audio
+        # PHRASE 4: "Now let's move on to derivatives." (4.0s)
+        # *** FadeOut ALL previous content when topic changes! ***
+        deriv_title = Text("Derivatives", color=GREEN).scale(0.9)
+        self.play(
+            FadeOut(parabola, dot, label),  # <-- CLEAR EVERYTHING
+            Write(deriv_title),
+            run_time=4.0
+        )
 
 class Scene2(Scene):
     def construct(self):
-        # ... Continue for SEGMENT 2's phrases
+        # Scene starts with a blank screen (no cleanup needed for first phrase)
+        # PHRASE 1: ...
         ...
 
 # ... Continue for all {segment_count} segments
@@ -184,6 +198,7 @@ class Scene2(Scene):
 KEY PRINCIPLES:
 - ONE self.play() call per phrase
 - run_time = phrase duration (to the decimal)
+- **FadeOut old content when transitioning** (prevent stacking!)
 - Chain multiple animations in one play() call to fill time beautifully
 - Use transforms, color changes, and movement to keep visuals engaging
 """
