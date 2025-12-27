@@ -325,14 +325,19 @@ class TextSlide{index}(Scene):
                         output_path
                     ]
                 else:
-                    # Loop video to reach target duration
-                    loops = int(target_duration / current_duration) + 1
+                    # Freeze the last frame to fill the duration
+                    # This prevents the "looping" issue the user complained about
+                    remaining_duration = target_duration - current_duration
+                    
+                    # Use tpad filter to clone the last frame for the remaining duration
+                    # We must re-encode (libx264) to apply the filter
                     cmd = [
                         'ffmpeg',
-                        '-stream_loop', str(loops),
                         '-i', video_path,
-                        '-t', str(target_duration),
-                        '-c', 'copy',
+                        '-vf', f'tpad=stop_mode=clone:stop_duration={remaining_duration}',
+                        '-an',
+                        '-c:v', 'libx264',
+                        '-pix_fmt', 'yuv420p',
                         '-y',
                         output_path
                     ]
@@ -341,11 +346,11 @@ class TextSlide{index}(Scene):
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=300 # Increased timeout for re-encoding
             )
             
             if result.returncode == 0 and os.path.exists(output_path):
-                print(f"  ✓ Duration adjusted successfully")
+                print(f"  ✓ Duration adjusted successfully (Freeze Frame)")
                 return output_path
             else:
                 print(f"  ⚠ Duration adjustment failed: {result.stderr}")

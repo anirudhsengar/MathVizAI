@@ -65,11 +65,25 @@ class PipelineOrchestrator:
         # Phase 2: Generate audio script
         audio_script = self.script_writer.write_script(solution, file_manager)
         
-        # Phase 3: Generate Manim video script
-        manim_script = self.video_generator.generate_manim_script(audio_script, file_manager)
-        
-        # Phase 4: Generate audio files (TTS)
+        # Phase 3: Generate audio files (TTS) - MOVED UP to provide timing info
         audio_files = self._generate_audio(file_manager)
+        
+        # Calculate audio durations for video timing
+        audio_metadata = []
+        if audio_files and self.video_synchronizer.is_available():
+            for file_path in audio_files:
+                duration = self.video_synchronizer.get_duration(file_path)
+                audio_metadata.append({
+                    'file': file_path,
+                    'duration': duration if duration else 0
+                })
+        
+        # Phase 4: Generate Manim video script (now with timing context)
+        manim_script = self.video_generator.generate_manim_script(
+            audio_script, 
+            file_manager,
+            audio_metadata=audio_metadata
+        )
         
         # Phase 5: Render videos from Manim script
         rendered_videos = self._render_videos(file_manager, audio_files)

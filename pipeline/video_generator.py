@@ -38,13 +38,14 @@ class VideoGenerator:
                 logger.error(f"Failed to initialize RAG Client: {e}")
                 print("⚠ RAG Client initialization failed. Continuing without RAG.")
     
-    def generate_manim_script(self, audio_script: str, file_manager: FileManager) -> str:
+    def generate_manim_script(self, audio_script: str, file_manager: FileManager, audio_metadata: list = None) -> str:
         """
         Generate Manim Python script from audio script
         
         Args:
             audio_script: The segmented audio script
             file_manager: File manager for saving outputs
+            audio_metadata: Optional list of dicts containing 'duration' for each segment
         
         Returns:
             Manim Python script as string
@@ -52,6 +53,18 @@ class VideoGenerator:
         print(f"\n{'='*60}")
         print(f"VIDEO GENERATOR (Context-Aware)")
         print(f"{'='*60}")
+        
+        # Format audio duration info if available
+        duration_info = ""
+        if audio_metadata:
+            duration_info = "\nAUDIO TIMINGS (CRITICAL: You MUST fill these exact durations):\n"
+            duration_info += "Strategies to fill time:\n"
+            duration_info += "1. Use `run_time=2` or `run_time=3` for complex writes/draws.\n"
+            duration_info += "2. Add `self.wait(1)` or `self.wait(2)` BETWEEN animations, not just at the end.\n"
+            duration_info += "3. If the audio is long, break the animation into smaller steps.\n"
+            for i, meta in enumerate(audio_metadata):
+                duration = meta.get('duration', 0)
+                duration_info += f"- Segment {i+1}: {duration:.2f} seconds\n"
         
         # Base configuration info
         config_info = f"""
@@ -63,6 +76,7 @@ Configuration Requirements:
 
 Target Audio Script:
 {audio_script}
+{duration_info}
 """
 
         # Check LaTeX availability dynamically
