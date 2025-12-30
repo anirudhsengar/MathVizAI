@@ -43,17 +43,10 @@ class VideoGenerator:
         """
         Generate Manim Python script from audio script with phrase-level synchronization.
         
-        Args:
-            audio_script: The segmented audio script
-            file_manager: File manager for saving outputs
-            segment_results: List of segment result dicts from TTS with phrase timing:
-                            Each contains 'phrases': [{'text', 'start', 'end', 'duration'}, ...]
-        
-        Returns:
-            Manim Python script as string
+        Refactored to generate SCENE-BY-SCENE for better quality and robustness.
         """
         print(f"\n{'='*60}")
-        print(f"VIDEO GENERATOR (Phrase-Synchronized)")
+        print(f"VIDEO GENERATOR (Phrase-Synchronized & Segment-Based)")
         print(f"{'='*60}")
         
         # Build phrase-level timing instructions - THIS IS THE KEY CHANGE
@@ -131,167 +124,200 @@ LATEX AVAILABLE: NO (CRITICAL)
         segment_count = len(segment_matches) if segment_matches else 1
         
         print(f"  Analyzed Script: Found {segment_count} segments")
+        
+        # ------------------------------------------------------------------
+        # NEW STRATEGY: GENERATE PER SEGMENT
+        # ------------------------------------------------------------------
+        
+        generated_scenes = []
+        
+        # Prepare segment data map for easy access
+        segment_map = {}
         if segment_results:
-            total_phrases = sum(len(s.get('phrases', [])) for s in segment_results)
-            print(f"  Total Phrases for Synchronization: {total_phrases}")
+            for seg in segment_results:
+                segment_map[seg.get('segment_number', 1)] = seg
 
-        scene_enforcement = f"""
-CRITICAL ARCHITECTURE - PHRASE-SYNCHRONIZED SCENES:
-=====================================================
-
-1. Generate EXACTLY {segment_count} Scene classes: Scene1, Scene2, ... Scene{segment_count}
-2. Each SceneN class corresponds to [SEGMENT N] from the audio script
-3. **INSIDE each Scene**: Create animations for EACH PHRASE with matching run_time values
-4. DO NOT use a single MathVisualization class
-5. DO NOT use self.next_section()
-6. DO NOT add extra self.wait() calls - let the run_time handle all timing
-7. **ALWAYS FadeOut old content** when transitioning between phrases (CRITICAL!)
-
-MANDATORY CODE PATTERN FOR PHRASE SYNCHRONIZATION:
-```python
-from manim import *
-
-class Scene1(Scene):
-    def construct(self):
-        # PHRASE 1: "Let's explore the parabola." (3.5s)
-        title = Text("The Parabola", color=BLUE).scale(0.9)
-        self.play(Write(title), run_time=3.5)
+        # Split the audio script into segments text
+        # We need the full text for context, but we'll focus on one segment at a time
         
-        # PHRASE 2: "Notice how it curves upward." (2.8s)
-        # *** ALWAYS FadeOut previous content! ***
-        parabola = FunctionGraph(lambda x: x**2, x_range=[-2, 2], color=YELLOW)
-        self.play(
-            FadeOut(title),  # <-- CLEAR OLD CONTENT
-            Create(parabola), 
-            run_time=2.8
-        )
+        script_segments = []
+        # Simple splitting by [SEGMENT N]
+        full_split = re.split(r'(\[SEGMENT\s+\d+\])', audio_script)
         
-        # PHRASE 3: "The vertex is at the origin." (3.2s)
-        # Keep parabola (it's relevant), but add new elements
-        dot = Dot(ORIGIN, color=RED).scale(1.5)
-        label = Text("Vertex", color=RED).scale(0.6).next_to(dot, DOWN)
-        self.play(
-            Create(dot), 
-            Write(label),
-            Indicate(dot, scale_factor=1.5),
-            run_time=3.2
-        )
+        # Reconstruct into (header, content) pairs checks
+        current_header = ""
+        for part in full_split:
+            if re.match(r'\[SEGMENT\s+\d+\]', part):
+                current_header = part
+            elif current_header:
+                script_segments.append(current_header + part)
+                current_header = ""
         
-        # PHRASE 4: "Now let's move on to derivatives." (4.0s)
-        # *** FadeOut ALL previous content when topic changes! ***
-        deriv_title = Text("Derivatives", color=GREEN).scale(0.9)
-        self.play(
-            FadeOut(parabola, dot, label),  # <-- CLEAR EVERYTHING
-            Write(deriv_title),
-            run_time=4.0
-        )
+        if not script_segments:
+             # Fallback if no specific tags found
+             script_segments = [audio_script]
 
-class Scene2(Scene):
-    def construct(self):
-        # Scene starts with a blank screen (no cleanup needed for first phrase)
-        # PHRASE 1: ...
-        ...
-
-# ... Continue for all {segment_count} segments
-```
-
-KEY PRINCIPLES:
-- ONE self.play() call per phrase
-- run_time = phrase duration (to the decimal)
-- **FadeOut old content when transitioning** (prevent stacking!)
-- Chain multiple animations in one play() call to fill time beautifully
-- Use transforms, color changes, and movement to keep visuals engaging
-"""
-        
-        # RAG / ReAct Loop
-        final_context = ""
-        
-        if self.rag_client:
-            print(f"Starting RAG ReAct loop (Max iterations: {config.MAX_RAG_ITERATIONS})")
+        # Generate each scene
+        for i, segment_text in enumerate(script_segments, 1):
+            print(f"\n🎥 GENERATING SCENE {i}/{len(script_segments)}")
             
-            # Initial context gathering loop
-            history = f"I need to generate a Manim video for the following script:\n{audio_script}\n\n{latex_instruction}\n"
-            history += "I have access to a vector store of Manim examples (3b1b style) and general Manim code.\n"
-            history += "I want to create visually stunning animations like 3Blue1Brown.\n"
+            # Get timing info for this segment
+            # Try to match segment number from text [SEGMENT X]
+            match = re.search(r'\[SEGMENT\s+(\d+)\]', segment_text)
+            seg_num = int(match.group(1)) if match else i
             
-            for i in range(config.MAX_RAG_ITERATIONS):
-                # Ask LLM if it needs context
-                react_prompt = f"""
-{history}
-
-Current Context Accumulated:
-{final_context if final_context else "None"}
-
-Do you need to search for any specific Manim code examples, styles, or functions to implement this video script effectively?
-If YES, respond with exactly: "QUERY: <search term>"
-If NO (you have enough info to generate the full script), respond with exactly: "FINISH"
-
-Example: "QUERY: how to animate neural network layers"
-"""
-                response = self.llm_client.generate_response(
-                    system_prompt="You are an expert Manim developer planning a script. You can search a codebase for examples.",
-                    query=react_prompt,
-                    temperature=0.1 # Low temp for decision making
-                ).strip()
-                
-                if response.startswith("QUERY:"):
-                    search_term = response.replace("QUERY:", "").strip()
-                    print(f"  Refining Context [{i+1}/{config.MAX_RAG_ITERATIONS}]: {search_term}")
-                    
-                    retrieved_info = self.rag_client.retrieve_context(search_term)
-                    final_context += f"\n\n--- Context for '{search_term}' ---\n{retrieved_info}"
-                    history += f"\nUser (Self): Searched for '{search_term}'\nSystem: Found relevant code examples.\n"
-                    
-                elif response == "FINISH":
-                    print("  Context gathering complete.")
-                    break
-                else:
-                    # Fallback if LLM chats effectively
-                    print(f"  LLM Decision: {response}")
-                    if "QUERY" in response:
-                        # Try to extract loosely
-                        pass 
-                    break
+            seg_data = segment_map.get(seg_num)
+            
+            # Generate the scene code
+            scene_code = self._generate_single_scene(
+                scene_number=i,  # Force sequential Scene1, Scene2...
+                segment_text=segment_text,
+                segment_data=seg_data,
+                latex_instruction=latex_instruction
+            )
+            
+            generated_scenes.append(scene_code)
         
-        # Generate Final Script
-        print("\nGenerating final Manim script...")
-        
-        final_query = f"""
-{config_info}
-
-RETRIEVED CONTEXT / EXAMPLES:
-{final_context}
-
-{scene_enforcement}
-
-{latex_instruction}
-
-Please generate the complete, runnable Manim script.
-"""
-        
-        manim_code = self.llm_client.generate_response(
-            system_prompt=self.system_prompt,
-            query=final_query,
-            temperature=config.TEMPERATURE_VIDEO_GENERATOR
-        )
-        
-        # Clean up the code (remove markdown code blocks if present)
-        manim_code = self._clean_code(manim_code)
-        
-        # Validate multi-scene architecture
-        if "class Scene1(Scene):" not in manim_code:
-             print("⚠ WARNING: Generated script might be missing 'Scene1' class.")
+        # Merge all scenes into one file
+        final_script = self._merge_scenes(generated_scenes)
         
         # Save Manim script
-        filepath = file_manager.save_text(manim_code, 'manim_visualization.py', 'video')
+        filepath = file_manager.save_text(final_script, 'manim_visualization.py', 'video')
         print(f"✓ Manim script saved: {filepath}")
         
         # Save rendering instructions
         instructions = self._generate_rendering_instructions(filepath)
         file_manager.save_text(instructions, 'rendering_instructions.txt', 'video')
         
-        return manim_code
+        return final_script
     
+    def _generate_single_scene(self, scene_number: int, segment_text: str, segment_data: dict, latex_instruction: str) -> str:
+        """
+        Generate code for a SINGLE Manim Scene with its own RAG loop.
+        """
+        # 1. Build Timing Info
+        phrase_timing_info = ""
+        seg_duration = segment_data.get('duration', 0) if segment_data else 0
+        phrases = segment_data.get('phrases', []) if segment_data else []
+        
+        if phrases:
+            phrase_timing_info = f"""
+TIMING REQUIREMENTS FOR SCENE {scene_number}:
+Total Duration: {seg_duration:.1f}s
+Phrase Count: {len(phrases)}
+
+PHRASES TO ANIMATE (You MUST strictly follow these run_times):
+"""
+            for i, phrase in enumerate(phrases, 1):
+                p_text = phrase.get('text', '')[:100]
+                p_dur = phrase.get('duration', 0)
+                phrase_timing_info += f"  P{i}: ({p_dur:.2f}s) \"{p_text}\"\n"
+
+        # 2. RAG Loop for this specific segment
+        final_context = ""
+        if self.rag_client:
+            print(f"  Starting RAG for Scene {scene_number}...")
+            history = f"I need to generate Manim code for this specific segment:\n{segment_text}\n\n{latex_instruction}\n"
+            history += "I want visually stunning animations like 3Blue1Brown. I need to be VERY specific."
+            
+            for i in range(config.MAX_RAG_ITERATIONS):
+                react_prompt = f"""
+{history}
+
+Current Context:
+{final_context if final_context else "None"}
+
+TASK: Plan the visualization for this segment.
+ref: Scene {scene_number}
+
+Do you need to search for specific Manim code/examples?
+To generate HIGH QUALITY content, you should search!
+Active Learning: If you are unsure about how to visualize something complex, SEARCH!
+
+Response Options:
+1. "QUERY: <search term>" (Search for code/concepts)
+2. "FINISH" (Ready to code)
+"""
+                try:
+                    response = self.llm_client.generate_response(
+                        system_prompt="You are an expert Manim developer. Be curious and search for good examples.",
+                        query=react_prompt,
+                        temperature=0.2
+                    ).strip()
+                    
+                    if response.startswith("QUERY:"):
+                        search_term = response.replace("QUERY:", "").strip()
+                        print(f"    RAG Retrieval [{i+1}]: {search_term}")
+                        retrieved = self.rag_client.retrieve_context(search_term)
+                        # Truncate to avoid Rate Limits (TPM)
+                        if len(retrieved) > 1500:
+                            retrieved = retrieved[:1500] + "... [TRUNCATED]"
+                        
+                        final_context += f"\n\n--- Context: {search_term} ---\n{retrieved}"
+                        history += f"\nUser: Searched '{search_term}'\nSystem: Found info.\n"
+                    elif response == "FINISH":
+                        break
+                    else:
+                        break
+                except Exception as e:
+                    print(f"    RAG Error: {e}")
+                    break
+
+        # 3. Generate Scene Code
+        scene_classname = f"Scene{scene_number}"
+        
+        prompt = f"""
+GENERATE MANIM CODE FOR: class {scene_classname}(Scene)
+
+CONTENT TO VISUALIZE:
+{segment_text}
+
+STARTING CONTEXT: {phrase_timing_info}
+
+RETRIEVED KNOWLEDGE:
+{final_context}
+
+{latex_instruction}
+
+STRICT RULES:
+1. Define `class {scene_classname}(Scene):`
+2. Implement `def construct(self):`
+3. Follow the PHRASE TIMING exactly using `run_time`.
+4. **CRITICAL: CLEANUP OLD VISUALS**. 
+   - Before showing new concepts, `FadeOut` or `Uncreate` old ones unless they are reused.
+   - Do not let objects stack up indefinitely.
+5. Provide ONLY the Python code for this class. No imports (handled later), no other classes.
+"""
+
+        print(f"  Generating code for {scene_classname}...")
+        code = self.llm_client.generate_response(
+            system_prompt=self.system_prompt,
+            query=prompt,
+            temperature=config.TEMPERATURE_VIDEO_GENERATOR
+        )
+        
+        return self._clean_code(code)
+
+    def _merge_scenes(self, scene_codes: list) -> str:
+        """Merge multiple scene class codes into one file with imports"""
+        
+        # Standard imports
+        final_script = """from manim import *
+import numpy as np
+import math
+
+# Generated by MathVizAI
+"""
+        
+        for code in scene_codes:
+            # Strip local imports if any generated by mistake
+            lines = code.split('\n')
+            clean_lines = [l for l in lines if not l.strip().startswith('from manim import') and not l.strip().startswith('import ')]
+            
+            final_script += "\n\n" + "\n".join(clean_lines)
+            
+        return final_script
+            
     def _clean_code(self, code: str) -> str:
         """
         Clean up generated code by removing markdown artifacts and validating syntax.
@@ -314,6 +340,10 @@ Please generate the complete, runnable Manim script.
                 code = parts[1]
         
         code = code.strip()
+        
+        # Fix common hallucinations
+        code = code.replace("np.math.", "math.")
+        code = code.replace("numpy.math.", "math.")
         
         # Validate and fix syntax errors
         code = self._validate_and_fix_syntax(code)

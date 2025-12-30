@@ -42,7 +42,8 @@ class MathSolver:
         solution = self.llm_client.generate_response(
             system_prompt=self.system_prompt,
             query=query,
-            temperature=config.TEMPERATURE_SOLVER
+            temperature=config.TEMPERATURE_SOLVER,
+            allow_tools=True
         )
         
         # Save solution

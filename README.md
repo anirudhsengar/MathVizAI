@@ -19,6 +19,7 @@ MathVizAI is a complete end-to-end system that takes mathematical problems and a
 - **Segmented Output**: Breaks content into 15-20 second segments for optimal processing
 - **Multiple Scene Support**: Handles complex problems with unlimited animation scenes
 - **Final Video Assembly**: Concatenates all segments into one polished video
+- **Live Web Research**: Optional Tavily-powered search for fresh references and visual inspiration
 
 ## Pipeline Architecture
 
@@ -88,14 +89,20 @@ Create a `.env` file or set environment variables:
 
 ```powershell
 # Windows PowerShell
+$env:OPENAI_API_KEY = "your_openai_key"
+$env:TAVILY_API_KEY = "your_tavily_key"
 $env:GITHUB_TOKEN = "your_github_token_here"
 
 # Linux/Mac
+export OPENAI_API_KEY="your_openai_key"
+export TAVILY_API_KEY="your_tavily_key"
 export GITHUB_TOKEN="your_github_token_here"
 ```
 
 Alternatively, create a `.env` file:
 ```
+OPENAI_API_KEY=your_openai_key
+TAVILY_API_KEY=your_tavily_key
 GITHUB_TOKEN=your_github_token_here
 ```
 

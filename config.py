@@ -10,7 +10,12 @@ load_dotenv()
 # API Configuration
 # API Configuration
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY")
 MODEL_NAME = "gpt-4o"
+
+# Tavily search defaults
+TAVILY_MAX_RESULTS = 5
+TAVILY_SEARCH_DEPTH = "advanced"  # Options: basic, advanced
 
 # Temperature settings for different tasks
 TEMPERATURE_SOLVER = 0.4
@@ -49,7 +54,7 @@ AUDIO_SAMPLE_RATE = 24000
 
 # RAG Configuration
 RAG_ENABLED = True
-MAX_RAG_ITERATIONS = 6
+MAX_RAG_ITERATIONS = 10
 
 # Default reference audio (in audio/ folder)
 DEFAULT_REFERENCE_AUDIO = "sample_17s.wav"
