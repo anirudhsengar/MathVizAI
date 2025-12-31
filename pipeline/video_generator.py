@@ -202,7 +202,8 @@ LATEX AVAILABLE: NO (CRITICAL)
                     revision_feedback=scene_feedback,
                     attempt=scene_attempt
                 )
-
+                
+                # Check for Evaluator feedback first (LLM based)
                 if scene_evaluator:
                     scene_ok, eval_text, eval_path = scene_evaluator(
                         scene_code=scene_code,
@@ -215,6 +216,34 @@ LATEX AVAILABLE: NO (CRITICAL)
                 else:
                     scene_ok, eval_text, eval_path = True, "", ""
 
+                # If LLM passed, run Runtime Verification (Dry Run)
+                if scene_ok:
+                    # Construct full code for verification (needs imports)
+                    # _merge_scenes logic handles this normally, but we need it here for the check
+                    header = "from manim import *\nimport sys\nimport os\n"
+                    # Add src to path to allow importing visual_utils
+                    header += "sys.path.append(os.path.abspath('src'))\n"
+                    header += "try:\n    from visual_utils import *\nexcept ImportError:\n    pass\n\n"
+                    
+                    full_test_code = header + scene_code
+                    
+                    # Extract classname
+                    match = re.search(r'class\s+(\w+)\s*\(.*Scene.*\):', scene_code)
+                    if match:
+                        scene_classname = match.group(1)
+                        success, error_log = self.video_renderer.verify_scene_code(full_test_code, scene_classname)
+                        
+                        if not success:
+                            scene_ok = False
+                            print(f"    ⚠ Runtime Verification failed (Attempt {scene_attempt})")
+                            print(f"      Error: {error_log[:200]}...")
+                            eval_text = f"The code is syntactically correct but failed to render.\nError Log:\n{error_log}\n\nPlease fix the code to resolve this runtime error."
+                        else:
+                            print(f"    ✓ Runtime Verification passed")
+                    else:
+                        print(f"    ⚠ Could not find Scene class for verification.")
+
+                # Record results
                 scene_eval_records.append({
                     "scene_number": i,
                     "segment_number": seg_num,

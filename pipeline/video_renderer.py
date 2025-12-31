@@ -611,3 +611,69 @@ class VideoRenderer:
             print(f"❌ Section rendering error: {e}")
             return []
 
+
+    def verify_scene_code(self, scene_code: str, scene_classname: str) -> Tuple[bool, str]:
+        """
+        Verifies if the generated scene code is renderable by running a dry run.
+        
+        Args:
+            scene_code: The full Python code for the scene (including imports)
+            scene_classname: The name of the scene class to test
+            
+        Returns:
+            Tuple (success: bool, error_log: str)
+        """
+        import tempfile
+        import shutil
+        
+        # Create a temp directory for this check
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script_path = os.path.join(temp_dir, "test_verification.py")
+            
+            # Write the code
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(scene_code)
+            
+            # Construct check command
+            # Using -ql (low quality) and -s (save last frame) to be as fast as possible
+            # while still executing the code. --dry_run might skip too much logic.
+            cmd = [
+                "manim",
+                "-ql",          # Low quality
+                "-s",           # Save last frame only (faster than full video)
+                "--disable_caching", # Ensure we actually run it
+                script_path,
+                scene_classname
+            ]
+            
+            print(f"    Verifying {scene_classname}...")
+            
+            try:
+                # Run with timeout to prevent hanging
+                # Capture both stdout and stderr (Manim writes to both sometimes)
+                env = os.environ.copy()
+                env["COLUMNS"] = "200" # Force wider output to avoid wrapping
+                
+                result = subprocess.run(
+                    cmd, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=60, # 1 min timeout for verification
+                    cwd=temp_dir, # Run in temp dir to contain outputs
+                    env=env
+                )
+                
+                if result.returncode == 0:
+                    return True, ""
+                else:
+                    # Combine stdout and stderr for full context
+                    # Manim often puts the critical "Exception: ..." in stdout or stderr depending on version
+                    combined_log = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    
+                    # Return the last 3000 chars which likely contains the traceback
+                    return False, f"Manim Verification Error:\n{combined_log[-3000:]}"
+                    
+            except subprocess.TimeoutExpired:
+                return False, "Verification timed out after 60s."
+            except Exception as e:
+                return False, f"Verification failed to run: {str(e)}"

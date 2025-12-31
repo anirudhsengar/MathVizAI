@@ -39,6 +39,7 @@ VIDEO_GENERATOR_PROMPT_PATH = "system_prompts/video_generator.txt"
 OUTPUT_DIR = "output"
 DEBUG_MODE = True  # If True, keep all intermediate files. If False, keep only final video.
 MAX_SOLVER_RETRIES = 5  # Maximum retries for solver-evaluator loop
+MAX_VISUAL_RETRIES = 5  # Maximum retries for scene generation/rendering
 
 
 # Video configuration
