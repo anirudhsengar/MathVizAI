@@ -22,7 +22,7 @@ TEMPERATURE_SOLVER = 0.4
 TEMPERATURE_EVALUATOR = 0.0
 TEMPERATURE_SCRIPT_WRITER = 0.6
 TEMPERATURE_VIDEO_GENERATOR = 0.2
-TEMPERATURE_VISUAL_EVALUATOR = 0.15
+
 
 # Token limits
 MAX_TOKENS = 4000
@@ -33,12 +33,13 @@ SOLVER_PROMPT_PATH = "system_prompts/solver.txt"
 EVALUATOR_PROMPT_PATH = "system_prompts/evaluator.txt"
 SCRIPT_WRITER_PROMPT_PATH = "system_prompts/script_writer.txt"
 VIDEO_GENERATOR_PROMPT_PATH = "system_prompts/video_generator.txt"
-VISUAL_EVALUATOR_PROMPT_PATH = "system_prompts/visual_evaluator.txt"
+
 
 # Output configuration
 OUTPUT_DIR = "output"
-DEBUG_MODE = False  # If True, keep all intermediate files. If False, keep only final video.
+DEBUG_MODE = True  # If True, keep all intermediate files. If False, keep only final video.
 MAX_SOLVER_RETRIES = 5  # Maximum retries for solver-evaluator loop
+
 
 # Video configuration
 VIDEO_RESOLUTION = "1080p"

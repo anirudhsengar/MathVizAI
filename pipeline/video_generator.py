@@ -39,14 +39,26 @@ class VideoGenerator:
                 logger.error(f"Failed to initialize RAG Client: {e}")
                 print("⚠ RAG Client initialization failed. Continuing without RAG.")
     
-    def generate_manim_script(self, audio_script: str, file_manager: FileManager, segment_results: list = None) -> str:
+    def generate_manim_script(
+        self,
+        audio_script: str,
+        file_manager: FileManager,
+        segment_results: list = None,
+        feedback: str | None = None,
+        attempt: int = 1,
+        scene_evaluator=None,
+        max_scene_retries: int | None = None,
+    ) -> tuple[str, list[dict], bool]:
         """
         Generate Manim Python script from audio script with phrase-level synchronization.
-        
+
         Refactored to generate SCENE-BY-SCENE for better quality and robustness.
+        Adds attempt/feedback so regenerated drafts can incorporate QA notes.
+        Returns the merged script, per-scene evaluation records, and a boolean indicating
+        whether all scenes passed per-scene QA.
         """
         print(f"\n{'='*60}")
-        print(f"VIDEO GENERATOR (Phrase-Synchronized & Segment-Based)")
+        print(f"VIDEO GENERATOR (Phrase-Synchronized & Segment-Based) — Attempt {attempt}")
         print(f"{'='*60}")
         
         # Build phrase-level timing instructions - THIS IS THE KEY CHANGE
@@ -87,16 +99,20 @@ PHRASES BY SEGMENT:
         
         # Base configuration info  
         config_info = f"""
-Configuration Requirements:
-- Resolution: {config.VIDEO_RESOLUTION}
-- Quality: {config.MANIM_QUALITY}
-- Format: {config.MANIM_FORMAT}
-- Background: {config.VIDEO_BACKGROUND}
+    Configuration Requirements:
+    - Resolution: {config.VIDEO_RESOLUTION}
+    - Quality: {config.MANIM_QUALITY}
+    - Format: {config.MANIM_FORMAT}
+    - Background: {config.VIDEO_BACKGROUND}
+    - Generation Attempt: {attempt}
 
-Target Audio Script:
-{audio_script}
-{phrase_timing_info}
-"""
+    REVISION FEEDBACK (from visualization QA):
+    {feedback.strip() if feedback else 'None. This is the first draft.'}
+
+    Target Audio Script:
+    {audio_script}
+    {phrase_timing_info}
+    """
 
         # Check LaTeX availability dynamically
         is_latex_available = self.video_renderer.check_latex_availability()
@@ -130,6 +146,10 @@ LATEX AVAILABLE: NO (CRITICAL)
         # ------------------------------------------------------------------
         
         generated_scenes = []
+        scene_eval_records = []
+        all_scenes_ok = True
+
+        scene_retry_cap = max_scene_retries or getattr(config, "MAX_VISUAL_RETRIES", 1)
         
         # Prepare segment data map for easy access
         segment_map = {}
@@ -162,23 +182,63 @@ LATEX AVAILABLE: NO (CRITICAL)
             print(f"\n🎥 GENERATING SCENE {i}/{len(script_segments)}")
             
             # Get timing info for this segment
-            # Try to match segment number from text [SEGMENT X]
             match = re.search(r'\[SEGMENT\s+(\d+)\]', segment_text)
             seg_num = int(match.group(1)) if match else i
-            
             seg_data = segment_map.get(seg_num)
-            
-            # Generate the scene code
-            scene_code = self._generate_single_scene(
-                scene_number=i,  # Force sequential Scene1, Scene2...
-                segment_text=segment_text,
-                segment_data=seg_data,
-                latex_instruction=latex_instruction
-            )
-            
-            generated_scenes.append(scene_code)
+
+            scene_feedback = feedback
+            scene_attempt = 1
+            scene_approved = False
+            last_eval_text = ""
+            last_eval_path = ""
+
+            while scene_attempt <= scene_retry_cap:
+                # Generate the scene code
+                scene_code = self._generate_single_scene(
+                    scene_number=i,  # Force sequential Scene1, Scene2...
+                    segment_text=segment_text,
+                    segment_data=seg_data,
+                    latex_instruction=latex_instruction,
+                    revision_feedback=scene_feedback,
+                    attempt=scene_attempt
+                )
+
+                if scene_evaluator:
+                    scene_ok, eval_text, eval_path = scene_evaluator(
+                        scene_code=scene_code,
+                        segment_text=segment_text,
+                        segment_data=seg_data,
+                        scene_number=i,
+                        attempt=scene_attempt,
+                        feedback=scene_feedback,
+                    )
+                else:
+                    scene_ok, eval_text, eval_path = True, "", ""
+
+                scene_eval_records.append({
+                    "scene_number": i,
+                    "segment_number": seg_num,
+                    "attempt": scene_attempt,
+                    "approved": scene_ok,
+                    "evaluation_path": eval_path,
+                })
+
+                if scene_ok:
+                    scene_approved = True
+                    generated_scenes.append(scene_code)
+                    break
+
+                last_eval_text = eval_text
+                last_eval_path = eval_path
+                scene_feedback = f"Scene QA feedback (Attempt {scene_attempt}):\n{eval_text}"
+                scene_attempt += 1
+
+            if not scene_approved:
+                all_scenes_ok = False
+                print(f"✗ Scene {i} not approved after {scene_retry_cap} attempt(s). Aborting remaining scenes.")
+                break
         
-        # Merge all scenes into one file
+        # Merge all scenes into one file (may be partial if a scene failed)
         final_script = self._merge_scenes(generated_scenes)
         
         # Save Manim script
@@ -189,11 +249,20 @@ LATEX AVAILABLE: NO (CRITICAL)
         instructions = self._generate_rendering_instructions(filepath)
         file_manager.save_text(instructions, 'rendering_instructions.txt', 'video')
         
-        return final_script
+        return final_script, scene_eval_records, all_scenes_ok
     
-    def _generate_single_scene(self, scene_number: int, segment_text: str, segment_data: dict, latex_instruction: str) -> str:
+    def _generate_single_scene(
+        self,
+        scene_number: int,
+        segment_text: str,
+        segment_data: dict,
+        latex_instruction: str,
+        revision_feedback: str | None = None,
+        attempt: int = 1,
+    ) -> str:
         """
         Generate code for a SINGLE Manim Scene with its own RAG loop.
+        Uses revision feedback from visualization QA when available.
         """
         # 1. Build Timing Info
         phrase_timing_info = ""
@@ -268,6 +337,10 @@ Response Options:
         
         prompt = f"""
 GENERATE MANIM CODE FOR: class {scene_classname}(Scene)
+
+    ATTEMPT: {attempt}
+    REVISION FEEDBACK:
+    {revision_feedback if revision_feedback else 'None. Produce the first draft cleanly and defensively.'}
 
 CONTENT TO VISUALIZE:
 {segment_text}

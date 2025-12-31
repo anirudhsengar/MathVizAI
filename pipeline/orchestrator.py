@@ -7,7 +7,7 @@ from utils.file_manager import FileManager
 from pipeline.solver import MathSolver
 from pipeline.evaluator import SolutionEvaluator
 from pipeline.script_writer import ScriptWriter
-from pipeline.visualization_evaluator import VisualizationEvaluator
+
 from pipeline.video_generator import VideoGenerator
 from pipeline.tts_generator import TTSGenerator
 from pipeline.video_renderer import VideoRenderer
@@ -35,7 +35,7 @@ class PipelineOrchestrator:
         self.solver = MathSolver(self.llm_client, self.prompt_loader)
         self.evaluator = SolutionEvaluator(self.llm_client, self.prompt_loader)
         self.script_writer = ScriptWriter(self.llm_client, self.prompt_loader)
-        self.visual_evaluator = VisualizationEvaluator(self.llm_client, self.prompt_loader)
+
         self.video_generator = VideoGenerator(self.llm_client, self.prompt_loader)
         self.tts_generator = TTSGenerator()
         self.video_renderer = VideoRenderer()
@@ -74,22 +74,13 @@ class PipelineOrchestrator:
         # Extract audio file paths for backward compatibility
         audio_files = [r['audio_file'] for r in segment_results] if segment_results else []
         
-        # Phase 4: Generate Manim video script with PHRASE-LEVEL TIMING
-        # This is the key change - we now pass full phrase timing data
-        manim_script = self.video_generator.generate_manim_script(
-            audio_script, 
-            file_manager,
-            segment_results=segment_results  # Pass full phrase timing data
-        )
-
-        # Phase 4.5: Evaluate Manim script quality and sync alignment
-        visual_ok, visual_eval, visual_eval_path = self._evaluate_visualization(
+        # Phase 4: Generate Manim script
+        manim_script = self._generate_manim_script(
             audio_script,
-            manim_script,
             file_manager,
             segment_results
         )
-        
+
         # Phase 5: Render videos from Manim script
         rendered_videos = self._render_videos(file_manager, audio_files)
         
@@ -115,13 +106,13 @@ class PipelineOrchestrator:
             'sync_available': self.video_synchronizer.is_available(),
             'segments_synced': len(synced_videos) if synced_videos else 0,
             'final_video': final_video,
-            'visualization_approved': visual_ok,
+
             'outputs': {
                 'solution': file_manager.get_path('solution_final.txt', 'solver'),
                 'evaluation': file_manager.get_path('evaluation_final.txt', 'evaluator'),
                 'audio_script': file_manager.get_path('audio_script.txt', 'script'),
                 'manim_script': file_manager.get_path('manim_visualization.py', 'video'),
-                'visual_evaluation': visual_eval_path,
+
                 'audio_files': audio_files if audio_files else [],
                 'rendered_videos': rendered_videos if rendered_videos else {},
                 'synced_segments': synced_videos if synced_videos else [],
@@ -309,6 +300,23 @@ Ensure all steps are correct and the proof is rigorous.
         )
         
         return segment_results
+
+    def _generate_manim_script(
+        self,
+        audio_script: str,
+        file_manager: FileManager,
+        segment_results: list,
+    ) -> str:
+        """Generate Manim script without validation loop."""
+        
+        manim_script, _, _ = self.video_generator.generate_manim_script(
+            audio_script,
+            file_manager,
+            segment_results=segment_results,
+            attempt=1,
+            scene_evaluator=None,
+        )
+        return manim_script
     
     def _render_videos(self, file_manager: FileManager, audio_files: list) -> dict:
         """
@@ -461,27 +469,7 @@ Ensure all steps are correct and the proof is rigorous.
         
         return synced_segments, final_video
 
-    def _evaluate_visualization(
-        self,
-        audio_script: str,
-        manim_script: str,
-        file_manager: FileManager,
-        segment_results: list
-    ) -> tuple:
-        """Run the visualization evaluator with defensive error handling."""
-        try:
-            return self.visual_evaluator.evaluate(
-                audio_script=audio_script,
-                manim_script=manim_script,
-                segment_results=segment_results,
-                file_manager=file_manager,
-                attempt=1
-            )
-        except Exception as e:
-            print(f"⚠ Visualization evaluation failed: {e}")
-            placeholder = f"Visualization evaluation failed: {e}"
-            path = file_manager.save_text(placeholder, 'visual_evaluation_error.txt', 'video')
-            return False, placeholder, path
+
     
     def _print_summary(self, metadata: dict):
         """Print processing summary"""
@@ -490,9 +478,7 @@ Ensure all steps are correct and the proof is rigorous.
         print(f"{'='*60}")
         print(f"Session Folder: {metadata['session_folder']}")
         print(f"Processing Time: {metadata['processing_time_seconds']:.2f} seconds")
-        viz_status = metadata.get('visualization_approved')
-        if viz_status is not None:
-            print(f"Visualization QA: {'✓ Approved' if viz_status else '✗ Needs revision'}")
+
         
         # TTS Status
         if metadata.get('tts_available'):
