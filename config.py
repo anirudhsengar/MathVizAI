@@ -35,6 +35,7 @@ VIDEO_GENERATOR_PROMPT_PATH = "system_prompts/video_generator.txt"
 
 # Output configuration
 OUTPUT_DIR = "output"
+DEBUG_MODE = False  # If True, keep all intermediate files. If False, keep only final video.
 MAX_SOLVER_RETRIES = 5  # Maximum retries for solver-evaluator loop
 
 # Video configuration
@@ -54,7 +55,7 @@ AUDIO_SAMPLE_RATE = 24000
 
 # RAG Configuration
 RAG_ENABLED = True
-MAX_RAG_ITERATIONS = 10
+MAX_RAG_ITERATIONS = 3
 
 # Default reference audio (in audio/ folder)
 DEFAULT_REFERENCE_AUDIO = "sample_17s.wav"

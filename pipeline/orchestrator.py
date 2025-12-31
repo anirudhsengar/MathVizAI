@@ -14,6 +14,7 @@ from pipeline.video_synchronizer import VideoSynchronizer
 import config
 from datetime import datetime
 import os
+import shutil
 
 
 class PipelineOrchestrator:
@@ -126,7 +127,71 @@ class PipelineOrchestrator:
         # Print summary
         self._print_summary(metadata)
         
+        # Cleanup if DEBUG_MODE is False
+        if not config.DEBUG_MODE:
+            self._perform_cleanup(file_manager, metadata)
+
+        
         return metadata
+
+    def _perform_cleanup(self, file_manager: FileManager, metadata: dict):
+        """
+        Clean up intermediate files if DEBUG_MODE is False
+        
+        Args:
+            file_manager: File manager instance
+            metadata: Session metadata
+        """
+        if config.DEBUG_MODE:
+            return
+            
+        print(f"\n{'='*60}")
+        print("CLEANUP (DEBUG_MODE=False)")
+        print(f"{'='*60}")
+        
+        # Keep track of final video path to ensure we don't delete it
+        final_video_path = metadata.get('final_video')
+        
+        if not final_video_path or not os.path.exists(final_video_path):
+            print("⚠ Final video not found. Skipping cleanup to preserve data.")
+            return
+
+        print("Removing intermediate files...")
+
+        # List of folders to remove
+        folders_to_remove = ['solver', 'evaluator', 'script', 'audio', 'video']
+        
+        for folder in folders_to_remove:
+            folder_path = os.path.join(file_manager.session_folder, folder)
+            if os.path.exists(folder_path):
+                try:
+                    shutil.rmtree(folder_path)
+                    # print(f"  - Removed {folder}/")
+                except Exception as e:
+                    print(f"  ⚠ Failed to remove {folder}/: {e}")
+        
+        # Remove 'synced' folder in 'final'
+        synced_path = os.path.join(file_manager.session_folder, 'final', 'synced')
+        if os.path.exists(synced_path):
+             try:
+                shutil.rmtree(synced_path)
+                # print(f"  - Removed final/synced/")
+             except Exception as e:
+                print(f"  ⚠ Failed to remove final/synced/: {e}")
+
+        # Remove root files like original_query.txt, metadata.json etc
+        for filename in os.listdir(file_manager.session_folder):
+            file_path = os.path.join(file_manager.session_folder, filename)
+            if os.path.isfile(file_path):
+                try:
+                    os.remove(file_path)
+                    # print(f"  - Removed {filename}")
+                except Exception as e:
+                    print(f"  ⚠ Failed to remove {filename}: {e}")
+                    
+        print("✓ Cleanup complete. Only final video preserved.")
+        print(f"{'='*60}\n")
+
     
     def _solve_with_validation(self, query: str, file_manager: FileManager) -> tuple[str, str]:
         """
