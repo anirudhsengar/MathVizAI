@@ -2,6 +2,7 @@
 Video Generator module - creates Manim visualization scripts
 """
 import re
+import os
 from utils.llm_client import LLMClient
 from utils.prompt_loader import PromptLoader
 from utils.file_manager import FileManager
@@ -222,7 +223,9 @@ LATEX AVAILABLE: NO (CRITICAL)
                     # _merge_scenes logic handles this normally, but we need it here for the check
                     header = "from manim import *\nimport sys\nimport os\n"
                     # Add src to path to allow importing visual_utils
-                    header += "sys.path.append(os.path.abspath('src'))\n"
+                    # Use absolute path of the project's src directory to ensure verification works in temp dir
+                    src_abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
+                    header += f"sys.path.append(r'{src_abs_path}')\n"
                     header += "try:\n    from visual_utils import *\nexcept ImportError:\n    pass\n\n"
                     
                     full_test_code = header + scene_code
@@ -451,7 +454,9 @@ import sys
 import os
 
 # Add src to path to allow importing visual_utils
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Assuming file structure: output/SESSION/video/manim_visualization.py
+# We need to go up 3 levels to reach output, then 1 more to reach root
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 src_path = os.path.join(project_root, 'src')
 if src_path not in sys.path:
     sys.path.append(src_path)
