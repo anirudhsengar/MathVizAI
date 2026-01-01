@@ -378,8 +378,8 @@ You have access to a local library `visual_utils`. USE THESE FUNCTIONS to drasti
 2. `create_morphing_grid(rows=5, cols=5, height=4, width=4, color=GRAY)`
    - Returns a stylish grid ready for transformations.
    
-3. `create_glowing_text(text_str, font_size=48, color=WHITE, glow_color=BLUE, glow_opacity=0.5)`
-   - Returns VGroup of text with a colored blur glow.
+3. `create_glowing_text(text_str, font_size=48, color=WHITE, glow_color=BLUE, glow_opacity=0.5, max_width=40)`
+   - Returns VGroup of text with a colored blur glow. Automatically wraps text!
 
 4. `create_cyberpunk_box(width=5, height=3, color=TEAL)`
    - Returns a stylish framed box with corner accents.

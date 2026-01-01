@@ -46,7 +46,7 @@ def create_morphing_grid(rows=5, cols=5, height=4, width=4, color=GRAY):
     )
     return grid
 
-def create_glowing_text(text_str, font_size=48, color=WHITE, glow_color=BLUE, glow_opacity=0.5):
+def create_glowing_text(text_str, font_size=48, color=WHITE, glow_color=BLUE, glow_opacity=0.5, max_width=40):
     """
     Creates text with a soft background glow.
     
@@ -56,11 +56,14 @@ def create_glowing_text(text_str, font_size=48, color=WHITE, glow_color=BLUE, gl
         color (Color): Text color.
         glow_color (Color): Color of the glow.
         glow_opacity (float): Opacity of the glow.
+        max_width (int): Maximum characters per line before wrapping.
         
     Returns:
         VGroup: Text with glow.
     """
-    text = Text(text_str, font_size=font_size, color=color)
+    import textwrap
+    wrapped_text = textwrap.fill(text_str, width=max_width)
+    text = Text(wrapped_text, font_size=font_size, color=color, line_spacing=1.2)
     glow = text.copy().set_color(glow_color).set_opacity(glow_opacity)
     glow.set_stroke(width=5, color=glow_color, opacity=glow_opacity)
     return VGroup(glow, text)

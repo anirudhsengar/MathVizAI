@@ -52,6 +52,61 @@ class VideoSynchronizer:
         """Check if synchronizer is available"""
         return self.ffmpeg_available and self.ffprobe_available
     
+    def _has_audio_stream(self, file_path: str) -> bool:
+        """Check if file has an audio stream"""
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-select_streams', 'a',
+                '-show_entries', 'stream=codec_type',
+                '-of', 'default=noprint_wrappers=1:nokey=1',
+                file_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            # If output contains 'audio', it has an audio stream
+            return 'audio' in result.stdout
+        except Exception:
+            return False
+
+    def _get_sample_rate(self, file_path: str) -> Optional[int]:
+        """Get audio sample rate of file"""
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-select_streams', 'a',
+                '-show_entries', 'stream=sample_rate',
+                '-of', 'default=noprint_wrappers=1:nokey=1',
+                file_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                return int(result.stdout.strip())
+            return None
+        except Exception:
+            return None
+
+    def _resample_audio(self, input_path: str, output_path: str, target_rate: int) -> Optional[str]:
+        """Resample audio stream to target sample rate"""
+        try:
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-ar', str(target_rate),
+                '-c:v', 'copy',
+                '-c:a', 'aac',
+                '-y',
+                output_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode == 0 and os.path.exists(output_path):
+                return output_path
+            return None
+        except Exception as e:
+            print(f"  ❌ Error resampling audio: {e}")
+            return None
+
     def get_duration(self, file_path: str) -> Optional[float]:
         """
         Get duration of a media file in seconds
@@ -360,6 +415,33 @@ class TextSlide{index}(Scene):
             print(f"  ❌ Error adjusting duration: {e}")
             return video_path
     
+    def _add_silent_audio(self, video_path: str, output_path: str) -> Optional[str]:
+        """Add silent audio track to video"""
+        try:
+            # Use configured sample rate (default 24000 if not set)
+            sample_rate = getattr(config, 'AUDIO_SAMPLE_RATE', 24000)
+            
+            # Generate silent audio matching video duration
+            cmd = [
+                'ffmpeg',
+                '-f', 'lavfi',
+                '-i', f'anullsrc=channel_layout=stereo:sample_rate={sample_rate}',
+                '-i', video_path,
+                '-c:v', 'copy',
+                '-c:a', 'aac',
+                '-shortest',
+                '-y',
+                output_path
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            if result.returncode == 0 and os.path.exists(output_path):
+                return output_path
+            return None
+        except Exception as e:
+            print(f"  ❌ Error adding silent audio: {e}")
+            return None
+
     def merge_audio_video(
         self,
         video_path: str,
@@ -576,55 +658,81 @@ class TextSlide{index}(Scene):
         output_path: str
     ) -> Optional[str]:
         """
-        Concatenate all synced segments into a single final video
-        
-        Args:
-            synced_segments: List of synced segment info
-            output_path: Output path for final video
-        
-        Returns:
-            Path to final video, or None if failed
+        Concatenate all synced segments into a single final video using filter_complex
+        This is robust against different timebases, sample rates, and formats.
         """
         if not synced_segments:
             print("⚠ No segments to concatenate")
             return None
         
         print(f"\n{'='*60}")
-        print(f"CONCATENATING FINAL VIDEO")
+        print(f"CONCATENATING FINAL VIDEO (Robust Mode)")
         print(f"{'='*60}")
         
         try:
-            # Create concat file list
-            concat_file = os.path.join(
-                os.path.dirname(output_path),
-                'concat_list.txt'
-            )
+            # 1. Prepare inputs and ensure all have audio
+            input_files = []
+            temp_files_to_cleanup = []
             
-            with open(concat_file, 'w', encoding='utf-8') as f:
-                for segment in synced_segments:
-                    # FFmpeg requires forward slashes even on Windows and escaped single quotes
-                    video_path = os.path.abspath(segment['output_file']).replace('\\', '/')
-                    # Escape single quotes for FFmpeg concat demuxer: ' becomes '\'
-                    video_path = video_path.replace("'", "'\\''")
-                    f.write(f"file '{video_path}'\n")
+            print(f"📋 Preparing {len(synced_segments)} segments...")
             
-            print(f"📋 Concatenating {len(synced_segments)} segments...")
+            for segment in synced_segments:
+                video_path = segment['output_file']
+                
+                # Check for audio stream
+                if not self._has_audio_stream(video_path):
+                    print(f"  ⚠ No audio stream detected in {os.path.basename(video_path)}")
+                    print(f"    Adding silent audio track...")
+                    
+                    # Create temp file with silent audio
+                    temp_path = video_path.replace('.mp4', '_silent.mp4')
+                    fixed_path = self._add_silent_audio(video_path, temp_path)
+                    
+                    if fixed_path:
+                        video_path = fixed_path
+                        temp_files_to_cleanup.append(fixed_path)
+                        print(f"    ✓ Added silent audio")
+                    else:
+                        print(f"    ❌ Failed to add silent audio (concatenation may fail)")
+                
+                input_files.append(video_path)
+
+            # 2. Build FFmpeg command with filter_complex
+            # Inputs
+            cmd = ['ffmpeg']
+            for f in input_files:
+                cmd.extend(['-i', f])
             
-            cmd = [
-                'ffmpeg',
-                '-f', 'concat',
-                '-safe', '0',
-                '-i', concat_file,
-                '-c', 'copy',
+            # Filter complex
+            # [0:v][0:a][1:v][1:a]...concat=n=N:v=1:a=1[v][a]
+            num_inputs = len(input_files)
+            filter_str = ""
+            for i in range(num_inputs):
+                filter_str += f"[{i}:v][{i}:a]"
+            filter_str += f"concat=n={num_inputs}:v=1:a=1[v][a]"
+            
+            cmd.extend([
+                '-filter_complex', filter_str,
+                '-map', '[v]',
+                '-map', '[a]',
+                # Encoding settings
+                '-c:v', 'libx264',
+                '-preset', 'veryfast', # Speed up re-encoding
+                '-crf', '23',          # Good quality
+                '-c:a', 'aac',
+                '-b:a', '192k',
                 '-y',
                 output_path
-            ]
+            ])
             
+            print(f"🔄 Re-encoding and concatenating (this may take a minute)...")
+            
+            # Run
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=600  # 10 minute timeout for re-encoding
             )
             
             if result.returncode == 0 and os.path.exists(output_path):
@@ -633,15 +741,17 @@ class TextSlide{index}(Scene):
                 print(f"  Size: {file_size:.2f} MB")
                 print(f"  Path: {output_path}")
                 
-                # Clean up concat file
-                try:
-                    os.remove(concat_file)
-                except:
-                    pass
+                # Cleanup temps
+                for temp_file in temp_files_to_cleanup:
+                    if os.path.exists(temp_file):
+                        try:
+                            os.remove(temp_file)
+                        except:
+                            pass
                 
                 return output_path
             else:
-                print(f"❌ Concatenation failed: {result.stderr}")
+                print(f"❌ Concatenation failed: {result.stderr[-1000:]}") # Print last 1000 chars of error
                 return None
         
         except Exception as e:
