@@ -1,297 +1,114 @@
 # MathVizAI
 
-**Fully Automated Mathematical Video Generation System**
+## Overview
 
-MathVizAI is a complete end-to-end system that takes mathematical problems and automatically generates polished educational videos with synchronized visualizations and audio narration. The entire pipeline is automated from problem input to final video output.
+MathVizAI is an automated end-to-end system designed to generate polished, educational mathematical videos. It accepts a mathematical problem as input and autonomously produces a complete video explanation featuring synchronized visualizations, audio narration, and detailed step-by-step proofs. The system integrates advanced Large Language Models (LLMs) for reasoning, a self-correcting evaluation loop for accuracy, Manim for high-quality mathematical animations, and Microsoft VibeVoice for natural-sounding speech synthesis.
 
 ![MathVizAI](image.png)
 
-## Features
+## Key Features
 
-- **Intelligent Problem Solving**: Uses LLM to solve complex mathematical problems with detailed proofs
-- **Automated Validation**: Self-correcting system with evaluator that ensures solution accuracy
-- **Natural Audio Scripts**: Generates conversational explanations optimized for text-to-speech
-- **Voice Cloning TTS**: neuTTS-air integration for natural voice narration
-- **Automated Video Rendering**: Renders all Manim scenes with quality settings
-- **Audio-Video Synchronization**: Aligns audio with video and adjusts durations automatically
-- **Text Slide Generation**: Creates text slides when video is missing
-- **Beautiful Visualizations**: Creates Manim animations that sync with narration
-- **Segmented Output**: Breaks content into 15-20 second segments for optimal processing
-- **Multiple Scene Support**: Handles complex problems with unlimited animation scenes
-- **Final Video Assembly**: Concatenates all segments into one polished video
-- **Live Web Research**: Optional Tavily-powered search for fresh references and visual inspiration
+*   **Automated Problem Solving**: Utilizes LLMs to solve complex mathematical problems with rigorous proofs and logical steps.
+*   **Self-Correcting Verification**: Includes a dedicated evaluation stage that validates the solution's accuracy and iterates until a correct proof is generated.
+*   **Dynamic Visualizations**: Automatically generates Python code for Manim (Mathematical Animation Engine) to create precise and aesthetically pleasing mathematical animations.
+*   **High-Quality Neural TTS**: Integrates Microsoft's VibeVoice (via `vibevoice`) to generate natural, expressive audio narration.
+*   **RAG-Enhanced Generation**: employs a Retrieval-Augmented Generation (RAG) system with a "Golden Set" of high-quality examples to ensure reliable Manim code generation.
+*   **Audio-Visual Synchronization**: Automatically aligns generated audio segments with their corresponding video animations for a seamless viewing experience.
+*   **Pipeline Architecture**: Modular design separating solving, script writing, video generation, and rendering for robustness and maintainability.
 
-## Pipeline Architecture
+## System Architecture
 
-```
-Query Input: "Solve x² + 5x + 6 = 0"
-    ↓
-┌─────────────────────┐
-│   Math Solver       │ ← Solves problem with proof
-└─────────────────────┘
-    ↓
-┌─────────────────────┐
-│   Solution          │ ← Validates correctness
-│   Evaluator         │   (Auto-retry until perfect)
-└─────────────────────┘
-    ↓
-┌─────────────────────┐
-│   Script Writer     │ ← Creates audio narration
-└─────────────────────┘   (15-20s segments)
-    ↓
-┌─────────────────────┐
-│   Video Generator   │ ← Generates Manim code
-└─────────────────────┘   (multiple scenes)
-    ↓
-┌─────────────────────┐
-│   TTS Generator     │ ← Creates audio files
-└─────────────────────┘   (voice cloning)
-    ↓
-┌─────────────────────┐
-│   Video Renderer    │ ← Renders all scenes
-└─────────────────────┘   (automated)
-    ↓
-┌─────────────────────┐
-│   Video             │ ← Syncs audio + video
-│   Synchronizer      │   (duration matching)
-└─────────────────────┘   (text slides for missing video)
-    ↓
-  Final Polished Video
-   (ready to publish)
-```
+The pipeline processes a query through the following sequential stages:
+
+1.  **Solver**: The system receives a math problem and generates a detailed text solution.
+2.  **Evaluator**: A secondary LLM reviews the solution for errors. if issues are found, the Solver is triggered to retry.
+3.  **Script Writer**: Converts the verified solution into a conversational script, segmented for optimal pacing (approx. 15-20 seconds per segment).
+4.  **Video Generator**: Generates Manim Python code for each script segment, visualizing the concepts described.
+5.  **TTS Generator**: Synthesizes audio for each segment using VibeVoice.
+6.  **Renderer**: Executes the Manim code to render video segments (supports parallel execution).
+7.  **Synchronizer & Assembly**: Combines audio and video streams, adjusting playback logic as needed, and concatenates all segments into the final output file.
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- GitHub Token with API access
-- FFmpeg (required for Manim video rendering)
-- Manim (optional, for automated video rendering)
-- neuTTS-air (optional, for audio generation)
+*   **Python**: Version 3.8 or higher.
+*   **FFmpeg**: Required for Manim video rendering and audio processing.
+*   **System Dependencies**: Building VibeVoice and Manim may require system-level development tools (e.g., `build-essential`, `espeak-ng`).
 
 ### Setup
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/anirudhsengar/MathVizAI.git
-cd MathVizAI
-```
+1.  **Clone the Repository**
 
-2. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
+    ```bash
+    git clone https://github.com/anirudhsengar/MathVizAI.git
+    cd MathVizAI
+    ```
 
-3. **Set up environment variables**
+2.  **Install Python Dependencies**
 
-Create a `.env` file or set environment variables:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-```powershell
-# Windows PowerShell
-$env:OPENAI_API_KEY = "your_openai_key"
-$env:TAVILY_API_KEY = "your_tavily_key"
-$env:GITHUB_TOKEN = "your_github_token_here"
+    *Note: The `vibevoice` dependency is installed directly from its GitHub repository as specified in `requirements.txt`.*
 
-# Linux/Mac
-export OPENAI_API_KEY="your_openai_key"
-export TAVILY_API_KEY="your_tavily_key"
-export GITHUB_TOKEN="your_github_token_here"
-```
+3.  **Configure Environment Variables**
 
-Alternatively, create a `.env` file:
-```
-OPENAI_API_KEY=your_openai_key
-TAVILY_API_KEY=your_tavily_key
-GITHUB_TOKEN=your_github_token_here
-```
+    Create a `.env` file in the project root directory and add your API keys:
 
-4. **Optional: Install Manim for automated video rendering**
-```bash
-pip install manim
-```
+    ```env
+    OPENAI_API_KEY=your_openai_api_key
+    TAVILY_API_KEY=your_tavily_api_key
+    ```
 
-For detailed Manim installation instructions, visit: https://docs.manim.community/en/stable/installation.html
+    *   `OPENAI_API_KEY`: Required for the LLM (GPT-4o).
+    *   `TAVILY_API_KEY`: Required for web research capabilities (optional but recommended).
 
-**FFmpeg Installation (required for Manim):**
-- Windows: `choco install ffmpeg` or download from https://ffmpeg.org/
-- Linux: `sudo apt install ffmpeg`
-- Mac: `brew install ffmpeg`
+## Configuration
 
-5. **Optional: Set up neuTTS-air for audio generation**
+The system is highly configurable via `config.py`. Key settings include:
 
-See [TTS_SETUP.md](TTS_SETUP.md) for detailed instructions.
-
-Quick setup:
-```powershell
-# Install soundfile
-pip install soundfile
-
-# Clone and install neuTTS-air
-git clone https://github.com/anirudhsengar/neutts-air.git
-cd neutts-air
-pip install -e .
-```
-
-Note: TTS is optional. Without it, the system will generate all other components and skip audio generation.
+*   **`DEBUG_MODE`**: Set to `True` to retain all intermediate files (logs, individual video segments, audio files). Set to `False` to keep only the final video.
+*   **`DEEP_DIVE_MODE`**: When `True`, generates more comprehensive and detailed explanations.
+*   **`MANIM_QUALITY`**: Controls the rendering resolution (`low`, `medium`, `high`, `production`).
+*   **`RAG_ENABLED`**: Toggles the use of the Golden Set RAG system for improved code generation.
+*   **`MAX_TOKENS`** & **`TEMPERATURE`**: Fine-tune the behavior of the LLMs for different pipeline stages.
 
 ## Usage
 
-### Basic Usage
+### Running the Application
+
+To start the interactive CLI:
 
 ```bash
 python main.py
 ```
-Then enter mathematical problems when prompted:
 
-```
-Enter math problem: Prove that the square root of 2 is irrational
-```
+Follow the prompts to enter a mathematical problem (e.g., "Prove that the square root of 2 is irrational").
 
-### Output Structure
+### Output
 
-Each query generates a timestamped folder in `output/` with:
+All generated content is saved to the `output/` directory, organized by timestamp and query name. A typical session folder includes:
 
-```
-output/
-└── 20250118_143022_Prove_that_the_square_root_of_2/
-    ├── metadata.json              # Session metadata
-    ├── original_query.txt         # Your original question
-    ├── solver/
-    │   ├── solution_attempt_1.txt
-    │   └── solution_final.txt     # Approved solution
-    ├── evaluator/
-    │   ├── evaluation_attempt_1.txt
-    │   └── evaluation_final.txt   # Final validation report
-    ├── script/
-    │   ├── audio_script.txt       # Complete script
-    │   ├── segments.json          # Parsed segments
-    │   └── segment_XX_visual.txt  # Visual cues
-    ├── audio/
-    │   ├── segment_01.wav         # Generated audio (if TTS enabled)
-    │   ├── segment_02.wav
-    │   ├── segment_XX_audio.txt   # Audio script text
-    │   └── audio_metadata.json    # Audio generation info
-    ├── video/
-    │   ├── manim_visualization.py # Executable Manim code
-    │   └── rendering_instructions.txt
-    └── final/
-        └── (final video will go here)
-```
-
-### Rendering the Video
-
-After generation, render the Manim visualization:
-
-```bash
-cd output/[your_session_folder]/video
-manim -qh manim_visualization.py MathVisualization
-```
-
-Quality options:
-- `-ql`: Low quality (480p15) - fast preview
-- `-qm`: Medium quality (720p30)
-- `-qh`: High quality (1080p60) - recommended
-- `-qk`: Production quality (1440p60)
-
-## Configuration
-
-Edit `config.py` to customize:
-
-```python
-# Temperature settings for each component
-TEMPERATURE_SOLVER = 0.4          # Solution generation
-TEMPERATURE_EVALUATOR = 0.0       # Strict evaluation
-TEMPERATURE_SCRIPT_WRITER = 0.6   # Creative narration
-TEMPERATURE_VIDEO_GENERATOR = 0.2 # Consistent code
-
-# Retry settings
-MAX_SOLVER_RETRIES = 5  # Max attempts before accepting solution
-
-# Video settings
-VIDEO_RESOLUTION = "1080p"
-VIDEO_FPS = 60
-```
-
-## Roadmap
-
-### Current Status
-
-- Mathematical problem solving with proofs
-- Automated solution validation with retry logic
-- Audio script generation with segments
-- Manim visualization code generation
-- TTS audio generation (neuTTS-air integration)
-- Audio-video synchronization
-- Final video assembly
-
-### Planned Features
-
-- Background music and sound effects
-- Subtitle generation
-- Batch processing mode
-- Web interface
+*   `final/`: Contains the final compiled video.
+*   `solver/`: Solutions and proof attempts.
+*   `script/`: Generated audio scripts and segmentation data.
+*   `video/`: Manim Python scripts (`.py`).
+*   `render/`: Raw rendered video segments (`.mp4`).
+*   `audio/`: Synthesized audio files (`.wav`).
 
 ## Development
 
-### Project Structure
+The codebase is organized into modular components under the `pipeline/` directory:
 
-```
-MathVizAI/
-├── main.py                 # Entry point
-├── config.py              # Configuration
-├── requirements.txt       # Dependencies
-├── system_prompts/        # LLM prompts
-│   ├── solver.txt
-│   ├── evaluator.txt
-│   ├── script_writer.txt
-│   └── video_generator.txt
-├── pipeline/              # Core pipeline modules
-│   ├── orchestrator.py    # Main pipeline controller
-│   ├── solver.py          # Math solver
-│   ├── evaluator.py       # Solution validator
-│   ├── script_writer.py   # Audio script generator
-│   └── video_generator.py # Manim code generator
-├── utils/                 # Utility modules
-│   ├── llm_client.py      # LLM API wrapper
-│   ├── prompt_loader.py   # Prompt management
-│   └── file_manager.py    # File operations
-└── output/                # Generated content
-```
-
-### Adding New Features
-
-1. **Custom Prompts**: Edit files in `system_prompts/` to customize AI behavior
-2. **Pipeline Stages**: Add new stages in `pipeline/` directory
-3. **Configuration**: Add settings to `config.py`
-
-## Examples
-
-Example problems you can try:
-
-- "Prove that the square root of 2 is irrational"
-- "Solve the integral of e^x * sin(x) dx"
-- "Prove the Pythagorean theorem using similar triangles"
-- "Find the derivative of x^x"
-- "Explain the Fundamental Theorem of Calculus"
-
-## Contributing
-
-Contributions are welcome! Areas where help is needed:
-
-- TTS integration (neuTTS-air)
-- Audio-video synchronization
-- Manim animation templates
-- Additional visualization types
-- Testing and bug fixes
+*   `pipeline/orchestrator.py`: Manages the overall data flow and stage execution.
+*   `pipeline/solver.py`: Handles mathematical reasoning.
+*   `pipeline/evaluator.py`: Validates solutions.
+*   `pipeline/video_generator.py`: Generates visualization code.
+*   `pipeline/video_renderer.py`: Handles Manim rendering.
+*   `pipeline/tts_generator.py`: Interfaces with the VibeVoice model.
 
 ## License
 
-MIT License
-
-## Acknowledgments
-
-- **Manim Community** - Mathematical animation engine
-- **Microsoft Phi-4** - Reasoning model via GitHub Models
-- **Azure AI Inference** - LLM API infrastructure
-
+This project is licensed under the MIT License.
