@@ -456,6 +456,21 @@ Ensure all steps are correct and the proof is rigorous.
         # Concatenate into final video
         final_video = None
         if synced_segments:
+            # Inject Intro and Outro
+            final_segments_list = list(synced_segments)
+            
+            # Intro
+            intro_path = os.path.abspath(os.path.join('assets', 'branding', 'intro', 'Intro.mp4'))
+            if os.path.exists(intro_path):
+                print(f"  + Prepending Intro: {intro_path}")
+                final_segments_list.insert(0, {'output_file': intro_path, 'duration': 3.0}) # approximate duration
+            
+            # Outro
+            outro_path = os.path.abspath(os.path.join('assets', 'branding', 'outro', 'Outro.mp4'))
+            if os.path.exists(outro_path):
+                print(f"  + Appending Outro: {outro_path}")
+                final_segments_list.append({'output_file': outro_path, 'duration': 8.0}) # approximate duration
+
             final_output_path = os.path.join(
                 file_manager.session_folder,
                 'final',
@@ -463,7 +478,7 @@ Ensure all steps are correct and the proof is rigorous.
             )
             
             final_video = self.video_synchronizer.concatenate_segments(
-                synced_segments=synced_segments,
+                synced_segments=final_segments_list,
                 output_path=final_output_path
             )
         

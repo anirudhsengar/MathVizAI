@@ -37,7 +37,7 @@ VIDEO_GENERATOR_PROMPT_PATH = "system_prompts/video_generator.txt"
 
 # Output configuration
 OUTPUT_DIR = "output"
-DEBUG_MODE = True  # If True, keep all intermediate files. If False, keep only final video.
+DEBUG_MODE = False  # If True, keep all intermediate files. If False, keep only final video.
 MAX_SOLVER_RETRIES = 5  # Maximum retries for solver-evaluator loop
 MAX_VISUAL_RETRIES = 5  # Maximum retries for scene generation/rendering
 
@@ -70,6 +70,6 @@ MANIM_QUALITY = "high"  # Options: low, medium, high, production
 MANIM_FORMAT = "mp4"
 
 # Performance
-MAX_RENDER_WORKERS = 4  # Number of parallel rendering threads
+MAX_RENDER_WORKERS = 1  # Number of parallel rendering threads
 MANIM_TIMEOUT = 1800    # 30 minutes timeout per scene (for deep-dive content)
 

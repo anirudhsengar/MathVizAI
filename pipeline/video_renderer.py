@@ -143,12 +143,35 @@ class VideoRenderer:
             print(f"\n🎬 Rendering scene as PNG sequence: {scene_name}")
             print(f"   Command: {' '.join(cmd)}")
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=config.MANIM_TIMEOUT  # Use configured timeout
-            )
+            # Retry logic for rendering
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=config.MANIM_TIMEOUT  # Use configured timeout
+                    )
+                    
+                    if result.returncode == 0:
+                        break
+                        
+                    # If failed, check if it's a DVI error (transient)
+                    if "can't open file" in result.stderr and ".dvi" in result.stderr:
+                        print(f"⚠ DVI/SVG conversion error (attempt {attempt+1}/{max_retries}). Retrying...")
+                        time.sleep(2) # Wait a bit before retry
+                        continue
+                        
+                    # Other errors - break immediately unless we implement specific handling
+                    # For now, let's just print and retry for any error just in case it's transient
+                    print(f"⚠ Rendering failed (attempt {attempt+1}/{max_retries}). Retrying...")
+                    
+                except subprocess.TimeoutExpired:
+                    if attempt == max_retries - 1:
+                        print(f"❌ Rendering timed out after {config.MANIM_TIMEOUT}s")
+                        return None
+                    print(f"⚠ Rendering timed out (attempt {attempt+1}/{max_retries}). Retrying...")
             
             if result.returncode != 0:
                 print(f"❌ Rendering process failed.")
