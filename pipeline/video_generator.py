@@ -242,9 +242,8 @@ LATEX AVAILABLE: NO (CRITICAL)
                             
                             # Save the failed code for inspection
                             debug_filename = f"debug_failed_scene_{i}_attempt_{scene_attempt}.py"
-                            debug_path = os.path.abspath(os.path.join(getattr(config, 'OUTPUT_DIR', 'output'), debug_filename))
-                            # Ensure output dir exists
-                            os.makedirs(os.path.dirname(debug_path), exist_ok=True)
+                            # Use file_manager to get path in the 'video' subfolder of the current session
+                            debug_path = file_manager.get_path(debug_filename, 'video')
                             
                             with open(debug_path, "w", encoding="utf-8") as f:
                                 f.write(full_test_code)
@@ -400,10 +399,12 @@ You have access to a local library `visual_utils`. USE THESE FUNCTIONS to drasti
    - `safe_get_part(mobject, tex_key)`: Safely gets a part of MathTex. Returns original obj if not found.
      - BAD: `tex.get_part_by_tex("x")` (Crashes if "x" missing)
      - GOOD: `safe_get_part(tex, "x")` (Always works)
+   - `create_tangent_line(axes, func, x_val, length, color)`:
+     - **USE THIS** instead of `axes.get_tangent_line` (which DOES NOT EXIST and will crash).
    - `safe_move_to_part(mobject_to_move, target_mobject, part_tex)`: Safely aligns objects.
 
 USAGE:
-from visual_utils import create_neon_graph, safe_get_part, ...
+from visual_utils import create_neon_graph, safe_get_part, create_tangent_line, ...
 (Already imported in the environment)
 """
 
@@ -442,6 +443,8 @@ STRICT RULES:
 6. **SELF-REFLECTION**: After generating, check:
    - Did you use `get_part_by_tex`? REPLACE IT with `safe_get_part`.
    - Did you use simple `Create()`? Replace with organic animations.
+   - **DID YOU USE `axes.get_tangent_line()`? IT WILL CRASH.**
+     - USE `create_tangent_line(axes, func, x, length, color)` from `visual_utils` instead.
 7. **NO CONFIG MODIFICATION**: DO NOT use `tempconfig`, `config.pixel_height`, etc.
    - DO NOT use `with tempconfig({...}):`. This causes crashes in our renderer.
 

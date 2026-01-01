@@ -25,6 +25,10 @@ TRANSITION STRATEGIES (pick one per phrase change)
 STYLE AND SAFETY
 - Dark background; vibrant colors (BLUE, TEAL, YELLOW, GREEN, ORANGE, PURPLE). Avoid muddy grays.
 - Text size: scale 0.7-0.9 for readability. Use Text unless MathTex is confirmed available.
+- **FRAME BOUNDARIES**: Manim screen is 16:9. X range is [-7.1, 7.1], Y range is [-4.0, 4.0]. 
+  - Keep critical content within X=[-6, 6] and Y=[-3.5, 3.5] to avoid safe-area cuts.
+  - If showing large text/equations, use `.scale_to_fit_width(12)` or `.scale_to_fit_height(7)`.
+  - For lists, use `VGroup(*items).arrange(DOWN, buff=0.5).to_edge(LEFT, buff=1)`. Do not hardcode positions > 7 or < -7.
 - Avoid heavy computations, file I/O, networking, randomness without seed. Keep code deterministic and light.
 - Use layout helpers (VGroup, to_edge, center, align_to) for clean composition.
 

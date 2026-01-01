@@ -168,3 +168,43 @@ def safe_move_to_part(mobject_to_move, target_mobject, part_tex):
     target = safe_get_part(target_mobject, part_tex)
     mobject_to_move.move_to(target)
     return mobject_to_move
+
+def create_tangent_line(axes, func, x_val, length=5, color=YELLOW):
+    """
+    Custom implementation of tangent line since axes.get_tangent_line is deprecated/removed.
+    
+    Args:
+        axes (Axes): The axes system.
+        func (callable): The function f(x).
+        x_val (float): The x value to find tangent at.
+        length (float): Visual length of the line.
+        color (Color): Line color.
+        
+    Returns:
+        Line: The tangent line.
+    """
+    # 1. Calculate numerical derivative slope
+    dx = 0.0001
+    y = func(x_val)
+    y_plus = func(x_val + dx)
+    slope = (y_plus - y) / dx
+    
+    # 2. Tangent line equation: y_tan = y + slope * (x - x_val)
+    # Pick points in data space slightly apart
+    x_start = x_val - 1
+    y_start = y + slope * (x_start - x_val)
+    x_end = x_val + 1
+    y_end = y + slope * (x_end - x_val)
+    
+    # 3. Convert to frame coordinates
+    p_start = axes.c2p(x_start, y_start)
+    p_end = axes.c2p(x_end, y_end)
+    
+    # 4. Create line and adjust properties
+    line = Line(p_start, p_end, color=color)
+    center_point = axes.c2p(x_val, y)
+    
+    line.set_length(length)
+    line.move_to(center_point)
+    
+    return line
